@@ -1,0 +1,44 @@
+**Consumer**
+- Must
+  - As a consumer, I want to register and log in, so that I can place and track orders.
+  - As a consumer, I want to browse active campaigns, so that I can find products to join.
+  - As a consumer, I want to see the campaign price next to the retail price, so that I know how much I'm saving.
+  - As a consumer, I want to see a campaign's progress, minimum target and deadline, so that I know whether it will succeed.
+  - As a consumer, I want to choose a quantity within the campaign's limits and place an order, so that I can join the campaign.
+  - As a consumer, I want to pay upfront with a simulated M-Pesa payment, so that my order is secured.
+  - As a consumer, I want to track my order status, so that I know when to expect delivery or collection.
+- Should
+  - As a consumer, I want to choose delivery to a listed location or collection from that location's collection point, so that I can pick what suits me and see the fee before paying.
+  - As a consumer, I want to cancel my order before the cutoff and get a full refund, so that I'm not locked in if my plans change.
+  - As a consumer, I want to be refunded automatically if a campaign fails, so that my money isn't lost.
+  - As a consumer, I want to confirm when I've received my order, so that the order is marked complete.
+- Nice
+  - As a consumer, I want to view my order and payment history.
+  - As a consumer, I want notifications about my orders and campaigns.
+
+**Wholesaler**
+- Must
+  - As a wholesaler, I want to register and submit business details, so that I can be verified.
+  - As a wholesaler, I want to add products with prices and available stock, so that they can be approved for campaigns.
+  - As a wholesaler, I want to see each product's approval status and any rejection reason, so that I know what to fix.
+  - As a wholesaler, I want to see the total delivery and collection quantities for a successful campaign, so that I know what to prepare.
+  - As a wholesaler, I want to confirm my stock is available for a successful campaign, so that fulfilment can start.
+- Should
+  - As a wholesaler, I want to update my stock quantities, so that campaigns don't exceed what I have.
+- Nice
+  - As a wholesaler, I want a dashboard of my live campaigns and pending actions.
+  - As a wholesaler, I want to see my payout records.
+
+**Administrator**
+- Must
+  - As an admin, I want to verify sellers and approve or reject their products with a reason, so that only trusted items are listed.
+  - As an admin, I want to create a campaign (product, price, platform fee, minimum and maximum quantity, per-order and per-person limits, deadline, cancellation cutoff) and save it as a draft or publish it, so that consumers can join.
+  - As an admin, I want to monitor campaign progress, orders and payments.
+  - As an admin, I want to close campaigns as successful or failed, so that fulfilment or automatic refunds can start.
+  - As an admin, I want to update fulfilment (preparing, dispatched, ready for collection, completed), so that consumers see current status.
+- Should
+  - As an admin, I want to manage locations (delivery fee, collection point, active or inactive), so that pricing and pickup are transparent.
+  - As an admin, I want to add products sourced directly from suppliers.
+  - As an admin, I want to mark seller payouts as paid, so that settlements are recorded.
+- Nice
+  - As an admin, I want summary figures on my dashboard (active campaigns, paid orders, revenue, pending approvals).
