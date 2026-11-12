@@ -1,0 +1,529 @@
+openapi: 3.1.0
+info:
+  title: Bread And Basket API
+  version: 1.0.0
+  description: >
+    Bread & Basket: a group-based food procurement and wholesale
+    marketplace system.
+
+
+    Conventions used across the whole API:
+
+    - Money is whole Kenyan shillings, sent as integers. The database stores
+      decimal(10,2); the API rounds to whole KES.
+
+    - Timestamps are ISO 8601 with a time zone, e.g. 2026-11-14T18:00:00+03:00.
+
+    - Fields marked readOnly are worked out by the server. Clients never send them.
+
+    - Every error uses the Error schema: {"error": "...", "code": "..."}.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+
+# Every path below sits under /api (the flask-smorest blueprints use url_prefix="/api/...").
+# Keeping /api here instead of in each path keeps the paths short.
+servers:
+  - url: http://localhost:5000/api
+    description: Local Flask server
+
+tags:
+  - name: Registration
+    description: Create consumer and wholesaler accounts
+  - name: Authentication
+    description: Log in consumers, wholesalers and admins
+  - name: Campaigns
+    description: Browse group-buying campaigns (consumer home, browse and campaign pages)
+  - name: Locations
+    description: Delivery areas and collection points used at checkout
+
+# Default: every endpoint needs a JWT. Public endpoints override this with `security: []`.
+security:
+  - bearerAuth: []
+
+paths:
+  # ------------------------------------------------------------------
+  # Registration and login
+  # ------------------------------------------------------------------
+  /consumers:
+    post:
+      summary: Register a consumer
+      operationId: registerConsumer
+      tags: [Registration]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConsumerRegister' }
+      responses:
+        '201':
+          description: Consumer account created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /wholesalers:
+    post:
+      summary: Register a wholesaler
+      description: The account is created with verification_status "pending" until an admin approves it.
+      operationId: registerWholesaler
+      tags: [Registration]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WholesalerRegister' }
+      responses:
+        '201':
+          description: Wholesaler account created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponseSeller' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /login:
+    post:
+      summary: Log in (consumer, wholesaler or admin)
+      operationId: loginUser
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserLogin' }
+      responses:
+        '200':
+          description: Login was successful
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  # ------------------------------------------------------------------
+  # Campaigns
+  # ------------------------------------------------------------------
+  /campaigns:
+    get:
+      summary: List active campaigns
+      description: >
+        One endpoint feeds both the consumer home page and the browse page.
+        The home page's rails are just filters of the same list:
+        "Ending soon" uses filter=ending_soon, "Almost unlocked" uses
+        filter=almost_unlocked, and the category circles use category=...
+
+
+        Only active campaigns are returned, soonest deadline first.
+        No pagination: the MVP has a few dozen campaigns at most.
+      operationId: listCampaigns
+      tags: [Campaigns]
+      security: []   # public: the landing page shows campaigns to visitors
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/Category' }
+          description: Only campaigns whose product is in this category.
+        - name: q
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 60 }
+          description: Search text, matched against the product name and campaign title.
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ending_soon, almost_unlocked]
+          description: >
+            ending_soon = deadline within the next 48 hours.
+            almost_unlocked = minimum not reached yet.
+      responses:
+        '200':
+          description: Active campaigns (an empty list if nothing matches)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CampaignSummary' }
+              example:
+                - id: 1
+                  title: Rice November Drive
+                  status: active
+                  campaign_price: 130
+                  min_quantity: 20
+                  max_quantity: 200
+                  deadline: '2026-11-16T18:00:00+03:00'
+                  ordered_quantity: 36
+                  households: 4
+                  min_reached: true
+                  sold_out: false
+                  savings_per_unit: 40
+                  product:
+                    id: 1
+                    name: Pishori rice
+                    unit: 1kg
+                    category: rice_grains
+                    image_url: /uploads/pishori-rice.webp
+                    retail_price: 170
+                - id: 7
+                  title: Tomato Crate Share
+                  status: active
+                  campaign_price: 450
+                  min_quantity: 15
+                  max_quantity: 40
+                  deadline: '2026-11-14T18:00:00+03:00'
+                  ordered_quantity: 12
+                  households: 5
+                  min_reached: false
+                  sold_out: false
+                  savings_per_unit: 150
+                  product:
+                    id: 13
+                    name: Tomatoes
+                    unit: 5kg crate
+                    category: vegetables
+                    image_url: null
+                    retail_price: 600
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /campaigns/{campaign_id}:
+    parameters:
+      - name: campaign_id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      summary: Get one campaign (campaign page and Join pop-up)
+      description: >
+        Everything the campaign page and the Join pop-up need, apart from the
+        list of locations (GET /locations).
+
+
+        Login is optional. With a token, the personal fields (my_quantity,
+        max_orderable) are filled in; without one they are null.
+        Draft campaigns return 404 to consumers.
+      operationId: getCampaign
+      tags: [Campaigns]
+      # Optional auth: `{}` means "no token is fine", the second entry means "a bearer token is accepted".
+      # In Flask this is @jwt_required(optional=True).
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The campaign
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CampaignDetail' }
+              example:
+                id: 1
+                title: Rice November Drive
+                status: active
+                campaign_price: 130
+                min_quantity: 20
+                max_quantity: 200
+                deadline: '2026-11-16T18:00:00+03:00'
+                ordered_quantity: 36
+                households: 4
+                min_reached: true
+                sold_out: false
+                savings_per_unit: 40
+                platform_charge: 10
+                min_order_quantity: 2
+                max_per_user: 20
+                cancellation_cutoff: '2026-11-13T18:00:00+03:00'
+                remaining_quantity: 164
+                can_join: true
+                my_quantity: 0
+                max_orderable: 20
+                product:
+                  id: 1
+                  name: Pishori rice
+                  unit: 1kg
+                  category: rice_grains
+                  image_url: /uploads/pishori-rice.webp
+                  retail_price: 170
+                  description: Long-grain aromatic Pishori rice from Mwea, packed in 1kg bags.
+                  source: seller
+                  seller_name: Mwangi Wholesalers
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ------------------------------------------------------------------
+  # Locations
+  # ------------------------------------------------------------------
+  /locations:
+    get:
+      summary: List active locations
+      description: >
+        The delivery areas shown in the Join pop-up. Every campaign uses the
+        same list, so it is its own endpoint instead of being repeated inside
+        each campaign. Inactive locations are not returned.
+      operationId: listLocations
+      tags: [Locations]
+      security: []
+      responses:
+        '200':
+          description: Active locations
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Location' }
+              example:
+                - { id: 1, name: Nairobi CBD, delivery_fee: 100, collection_point: Moi Avenue pickup desk, opposite Kenya Archives }
+                - { id: 2, name: Kasarani, delivery_fee: 150, collection_point: Mwiki Road pickup point, next to Seasons stage }
+                - { id: 3, name: Westlands, delivery_fee: 150, collection_point: Woodvale Grove pickup desk, ground floor }
+                - { id: 4, name: Rongai, delivery_fee: 200, collection_point: Rongai main stage pickup point, Magadi Road }
+                - { id: 5, name: Kisumu, delivery_fee: 450, collection_point: Oginga Odinga Street pickup desk, Kisumu CBD }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ---------------- Accounts ----------------
+    ConsumerRegister:
+      type: object
+      required: [full_name, phone, email, password]
+      properties:
+        full_name: { type: string, minLength: 2, maxLength: 120 }
+        phone:
+          type: string
+          pattern: '^\+?[0-9]{9,15}$'
+          example: '+254712345678'
+        email: { type: string, format: email, maxLength: 120 }
+        password: { type: string, minLength: 8, writeOnly: true }
+
+    WholesalerRegister:
+      allOf:
+        - $ref: '#/components/schemas/ConsumerRegister'
+        - type: object
+          required: [business_name, registration_number, business_address]
+          properties:
+            business_name: { type: string, maxLength: 150 }
+            registration_number: { type: string, maxLength: 60 }
+            business_address: { type: string, maxLength: 255 }
+
+    UserLogin:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, writeOnly: true }   # no minLength on login: just check it
+
+    User:
+      type: object
+      required: [id, full_name, email, role]
+      properties:
+        id: { type: integer, readOnly: true }
+        full_name: { type: string }
+        phone: { type: [string, 'null'] }
+        email: { type: string, format: email }
+        role: { type: string, enum: [admin, seller, consumer], readOnly: true }
+
+    SellerUser:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            # same name as the seller_profiles column, so marshmallow maps it straight across
+            verification_status: { type: string, enum: [pending, approved, rejected], readOnly: true }
+            business_name: { type: string }
+            business_address: { type: string }
+
+    AuthResponse:
+      type: object
+      required: [user, access_token, token_type]
+      properties:
+        message: { type: string, example: Welcome back. }
+        user:
+          anyOf:
+            - $ref: '#/components/schemas/SellerUser'
+            - $ref: '#/components/schemas/User'
+        access_token: { type: string }
+        token_type: { type: string, example: Bearer }
+
+    AuthResponseSeller:
+      type: object
+      required: [user, access_token, token_type]
+      properties:
+        message: { type: string, example: Registration received. Awaiting verification. }
+        user: { $ref: '#/components/schemas/SellerUser' }
+        access_token: { type: string }
+        token_type: { type: string, example: Bearer }
+
+    # ---------------- Catalogue ----------------
+    # A fixed list. The database column is free text; the API is what keeps it to these values.
+    # The frontend maps each value to a label and icon (rice_grains -> "Rice & grains").
+    Category:
+      type: string
+      enum: [vegetables, fruits, rice_grains, flour, cooking_oil, sugar, pulses, dairy_eggs]
+
+    # The product as a shopper sees it on a card.
+    # wholesale_price is deliberately NOT here: shoppers see the campaign's price,
+    # which is copied when the campaign is created.
+    ProductSummary:
+      type: object
+      required: [id, name, unit, category, image_url, retail_price]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        unit: { type: string, example: 1kg }
+        category: { $ref: '#/components/schemas/Category' }
+        image_url:
+          type: [string, 'null']
+          format: uri-reference
+          description: Null when no photo was uploaded; the frontend shows a placeholder.
+        retail_price: { type: integer, description: 'Shop price, used for the struck-through price and savings.' }
+
+    # Extra product details for the campaign page.
+    ProductDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProductSummary'
+        - type: object
+          required: [description, source, seller_name]
+          properties:
+            description: { type: [string, 'null'] }
+            source: { type: string, enum: [seller, platform] }
+            seller_name: { type: string, description: '"Bread & Basket" for platform-sourced products.' }
+
+    Location:
+      type: object
+      required: [id, name, delivery_fee, collection_point]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        delivery_fee: { type: integer, description: Flat fee per order for delivery. Collection is free. }
+        collection_point: { type: string }
+
+    # ---------------- Campaigns ----------------
+    # A campaign card (home rails and browse grid).
+    # Stored fields come straight from the campaigns table.
+    # readOnly fields need the orders table, so only the server can work them out.
+    CampaignSummary:
+      type: object
+      required:
+        - id
+        - title
+        - status
+        - campaign_price
+        - min_quantity
+        - max_quantity
+        - deadline
+        - ordered_quantity
+        - households
+        - min_reached
+        - sold_out
+        - savings_per_unit
+        - product
+      properties:
+        # stored
+        id: { type: integer }
+        title: { type: string }
+        status:
+          type: string
+          enum: [draft, active, successful, failed, fulfilling, completed, cancelled]
+        campaign_price: { type: integer, description: The price shoppers pay per unit (before the platform fee). }
+        min_quantity: { type: integer, description: Units needed by the deadline for the campaign to succeed. }
+        max_quantity: { type: integer, description: Total units available. }
+        deadline: { type: string, format: date-time }
+        # calculated by the server
+        ordered_quantity:
+          type: integer
+          readOnly: true
+          description: Units in orders that are not cancelled or refunded.
+        households:
+          type: integer
+          readOnly: true
+          description: Distinct shoppers with a live order (one person with two orders counts once).
+        min_reached: { type: boolean, readOnly: true, description: ordered_quantity >= min_quantity }
+        sold_out: { type: boolean, readOnly: true, description: ordered_quantity >= max_quantity }
+        savings_per_unit: { type: integer, readOnly: true, description: product.retail_price - campaign_price }
+        # nested
+        product: { $ref: '#/components/schemas/ProductSummary' }
+      # Left to the frontend on purpose (pure presentation from fields already here):
+      # progress bar width, the minimum marker position, "3 days left" and "Ending soon".
+
+    # The campaign page and Join pop-up: the card fields plus what checkout needs.
+    CampaignDetail:
+      allOf:
+        - $ref: '#/components/schemas/CampaignSummary'
+        - type: object
+          required:
+            - platform_charge
+            - min_order_quantity
+            - max_per_user
+            - cancellation_cutoff
+            - remaining_quantity
+            - can_join
+            - my_quantity
+            - max_orderable
+            - product
+          properties:
+            # stored
+            platform_charge: { type: integer, description: Platform fee per unit. }
+            min_order_quantity: { type: integer, description: Smallest quantity per order. }
+            max_per_user:
+              type: [integer, 'null']
+              description: Most units one shopper may hold across all their orders. Null means no limit.
+            cancellation_cutoff: { type: string, format: date-time, description: Last moment to cancel for a full refund. }
+            # calculated by the server
+            remaining_quantity: { type: integer, readOnly: true, description: max_quantity - ordered_quantity }
+            can_join:
+              type: boolean
+              readOnly: true
+              description: True while the campaign is active, before its deadline and not sold out.
+            # personal: depends on who is asking, so null without a token
+            my_quantity:
+              type: [integer, 'null']
+              readOnly: true
+              description: Units this shopper already holds in live orders for this campaign.
+            max_orderable:
+              type: [integer, 'null']
+              readOnly: true
+              description: >
+                Most units this shopper can still add: the smaller of
+                remaining_quantity and (max_per_user - my_quantity).
+                If it is below min_order_quantity, the shopper has hit their limit.
+            # the campaign page shows the fuller product
+            product: { $ref: '#/components/schemas/ProductDetail' }
+
+    # ---------------- Errors ----------------
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, example: This campaign is no longer taking orders. }
+        code: { type: string, example: CAMPAIGN_CLOSED }
+
+  responses:
+    Unauthorized:
+      description: Missing, invalid or expired token, or wrong email/password
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: The item does not exist (or is not visible to you)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Email already registered
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationFailed:
+      description: Fields failed validation (flask-smorest returns 422 for these)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
