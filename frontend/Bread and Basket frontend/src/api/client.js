@@ -9,8 +9,6 @@ export class ApiError extends Error {
   }
 }
 
-// flask-smorest sends validation errors as { errors: { json: { email: ["..."] } } }.
-// This turns that into { email: "..." } so each message can show under its field.
 function fieldErrorsFrom(data) {
   const raw = data?.errors?.json;
   if (!raw || typeof raw !== "object") return {};
