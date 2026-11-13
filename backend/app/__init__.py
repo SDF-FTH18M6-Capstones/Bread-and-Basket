@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from .config import CONFIGS
-from .extensions import db, migrate, jwt, api
+from .extensions import db, migrate, jwt, api, bycrypt
 
 
 def create_app(config_class=None):
@@ -16,6 +16,7 @@ def create_app(config_class=None):
     migrate.init_app(app, db)
     jwt.init_app(app)
     api.init_app(app)
+    bycrypt.init_app(app)
 
     from . import models
     from .health import blp as health_blp
