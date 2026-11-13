@@ -39,6 +39,12 @@ tags:
     description: Delivery areas and collection points used at checkout
   - name: Orders
     description: A consumer's own orders (place, track, cancel, confirm receipt)
+  - name: Account
+    description: The logged-in user
+  - name: Seller
+    description: Wholesaler screens (seller role only; writing needs an approved seller)
+  - name: Admin
+    description: Admin screens (admin role only)
 
 # Default: every endpoint needs a JWT. Public endpoints override this with `security: []`.
 security:
@@ -352,6 +358,592 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ------------------------------------------------------------------
+  # The logged-in user
+  # ------------------------------------------------------------------
+  /me:
+    get:
+      summary: Who am I? (any logged-in user)
+      description: Used by React on page load to restore the session from a stored token.
+      operationId: getMe
+      tags: [Account]
+      responses:
+        '200':
+          description: The logged-in user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+              examples:
+                pendingSeller: { $ref: '#/components/examples/MeSellerPending' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ------------------------------------------------------------------
+  # Seller (wholesaler) - role seller only; others get 403
+  # ------------------------------------------------------------------
+  /seller/products:
+    get:
+      summary: My products, with approval status
+      description: Every product this seller has submitted, newest first, in every approval status.
+      operationId: listMyProducts
+      tags: [Seller]
+      responses:
+        '200':
+          description: The seller's products (empty list if none)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SellerProduct' }
+              examples:
+                davy: { $ref: '#/components/examples/SellerProductList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Submit a product for approval
+      description: >
+        Creates a product with approval_status "pending". Only an APPROVED seller
+        can submit; a pending or rejected seller gets 403 SELLER_NOT_APPROVED.
+      operationId: submitProduct
+      tags: [Seller]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductCreate' }
+            examples:
+              beans: { $ref: '#/components/examples/ProductCreateBeans' }
+      responses:
+        '201':
+          description: Product submitted (pending)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SellerProduct' }
+              examples:
+                submitted: { $ref: '#/components/examples/SellerProductPending' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Not a seller, or the seller is not approved yet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                notApproved: { $ref: '#/components/examples/ErrorSellerNotApproved' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /seller/campaigns:
+    get:
+      summary: Campaigns running on my products
+      description: Every non-draft campaign for this seller's products, in any status, soonest deadline first.
+      operationId: listMyCampaigns
+      tags: [Seller]
+      responses:
+        '200':
+          description: The seller's campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CampaignSummary' }
+              examples:
+                davy: { $ref: '#/components/examples/SellerCampaignList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /seller/campaigns/{campaign_id}/orders:
+    parameters:
+      - $ref: '#/components/parameters/CampaignId'
+    get:
+      summary: How much to supply, split by delivery and collection
+      description: >
+        Totals only, grouped by fulfilment and then by location. Sellers never see
+        shoppers' names, phone numbers, addresses or payment references.
+        Counts only live orders (not cancelled or refunded).
+      operationId: getMyCampaignOrders
+      tags: [Seller]
+      responses:
+        '200':
+          description: Units needed per fulfilment type and location
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SellerCampaignOrders' }
+              examples:
+                tomatoes: { $ref: '#/components/examples/SellerCampaignOrdersTomatoes' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ------------------------------------------------------------------
+  # Admin - role admin only; others get 403
+  # ------------------------------------------------------------------
+  /admin/sellers:
+    get:
+      summary: Sellers, filtered by verification status
+      operationId: adminListSellers
+      tags: [Admin]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, approved, rejected] }
+          description: Leave out to get every seller. The approvals screen uses status=pending.
+      responses:
+        '200':
+          description: Sellers, oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AdminSeller' }
+              examples:
+                pending: { $ref: '#/components/examples/AdminSellerListPending' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/sellers/{seller_id}/approve:
+    parameters:
+      - $ref: '#/components/parameters/SellerId'
+    post:
+      summary: Approve a seller
+      description: Sets verification_status to approved, reviewed_by to the admin and reviewed_at to now.
+      operationId: adminApproveSeller
+      tags: [Admin]
+      responses:
+        '200':
+          description: The approved seller
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSeller' }
+              examples:
+                approved: { $ref: '#/components/examples/AdminSellerApproved' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/sellers/{seller_id}/reject:
+    parameters:
+      - $ref: '#/components/parameters/SellerId'
+    post:
+      summary: Reject a seller, with a reason
+      operationId: adminRejectSeller
+      tags: [Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RejectRequest' }
+            example: { reason: Business registration number could not be verified. }
+      responses:
+        '200':
+          description: The rejected seller
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSeller' }
+              examples:
+                rejected: { $ref: '#/components/examples/AdminSellerRejected' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /admin/products:
+    get:
+      summary: Products, filtered by approval status
+      operationId: adminListProducts
+      tags: [Admin]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, approved, rejected] }
+          description: Leave out to get every product. The approvals screen uses status=pending; the create-campaign form uses status=approved.
+      responses:
+        '200':
+          description: Products, oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AdminProduct' }
+              examples:
+                pending: { $ref: '#/components/examples/AdminProductListPending' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/products/{product_id}/approve:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    post:
+      summary: Approve a product
+      description: Only a product whose seller is approved can be approved (400 SELLER_NOT_APPROVED otherwise).
+      operationId: adminApproveProduct
+      tags: [Admin]
+      responses:
+        '200':
+          description: The approved product
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminProduct' }
+              examples:
+                approved: { $ref: '#/components/examples/AdminProductApproved' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/products/{product_id}/reject:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    post:
+      summary: Reject a product, with a reason
+      description: The seller sees the reason on their products screen.
+      operationId: adminRejectProduct
+      tags: [Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RejectRequest' }
+            example: { reason: Unit weight and photo missing. Please resubmit. }
+      responses:
+        '200':
+          description: The rejected product
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminProduct' }
+              examples:
+                rejected: { $ref: '#/components/examples/AdminProductRejected' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /admin/campaigns:
+    get:
+      summary: All campaigns, in every status
+      operationId: adminListCampaigns
+      tags: [Admin]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [draft, active, successful, failed, fulfilling, completed, cancelled] }
+          description: Leave out to get every campaign.
+      responses:
+        '200':
+          description: Campaigns, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AdminCampaign' }
+              examples:
+                some: { $ref: '#/components/examples/AdminCampaignList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Create a draft campaign from an approved product
+      description: >
+        campaign_price is copied from the product's wholesale_price; the admin does not send it.
+        cancellation_cutoff defaults to deadline minus 3 days when left out.
+        Rules (400): product must be approved (PRODUCT_NOT_APPROVED); deadline in the future;
+        cutoff on or before the deadline; min_quantity <= max_quantity <= product stock.
+      operationId: adminCreateCampaign
+      tags: [Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CampaignCreate' }
+            examples:
+              sugar: { $ref: '#/components/examples/CampaignCreateSugar' }
+      responses:
+        '201':
+          description: The new draft
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCampaign' }
+              examples:
+                draft: { $ref: '#/components/examples/AdminCampaignDraft' }
+        '400':
+          description: A campaign rule was broken
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                productNotApproved: { $ref: '#/components/examples/ErrorProductNotApproved' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /admin/campaigns/{campaign_id}:
+    parameters:
+      - $ref: '#/components/parameters/CampaignId'
+    patch:
+      summary: Edit a draft campaign
+      description: Send only the fields to change. Only drafts can be edited (400 CAMPAIGN_NOT_DRAFT).
+      operationId: adminUpdateCampaign
+      tags: [Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CampaignUpdate' }
+            example: { min_quantity: 40 }
+      responses:
+        '200':
+          description: The updated draft
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCampaign' }
+              examples:
+                draft: { $ref: '#/components/examples/AdminCampaignDraft' }
+        '400':
+          description: Not a draft
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                notDraft: { $ref: '#/components/examples/ErrorCampaignNotDraft' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /admin/campaigns/{campaign_id}/activate:
+    parameters:
+      - $ref: '#/components/parameters/CampaignId'
+    post:
+      summary: Publish a draft (draft -> active)
+      description: The deadline must still be in the future. The campaign appears in GET /campaigns straight away.
+      operationId: adminActivateCampaign
+      tags: [Admin]
+      responses:
+        '200':
+          description: The active campaign
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCampaign' }
+              examples:
+                active: { $ref: '#/components/examples/AdminCampaignActive' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/campaigns/{campaign_id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/CampaignId'
+    post:
+      summary: Cancel a campaign that nobody has joined
+      description: Allowed for a draft, or an active campaign with no live orders (400 CAMPAIGN_HAS_ORDERS otherwise; close it instead).
+      operationId: adminCancelCampaign
+      tags: [Admin]
+      responses:
+        '200':
+          description: The cancelled campaign
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCampaign' }
+              examples:
+                cancelled: { $ref: '#/components/examples/AdminCampaignCancelled' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/campaigns/{campaign_id}/close:
+    parameters:
+      - $ref: '#/components/parameters/CampaignId'
+    post:
+      summary: Close an active campaign now (success or fail)
+      description: >
+        Same logic as the `flask close-campaigns` command, for one campaign, even before its deadline.
+        Minimum reached -> successful, paid orders become confirmed.
+        Minimum missed -> failed, every live order is refunded automatically (campaign_failed).
+        Only active campaigns can be closed (400 CAMPAIGN_NOT_ACTIVE).
+      operationId: adminCloseCampaign
+      tags: [Admin]
+      responses:
+        '200':
+          description: What happened
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CampaignCloseResult' }
+              examples:
+                failed: { $ref: '#/components/examples/CampaignCloseFailed' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/campaigns/{campaign_id}/orders:
+    parameters:
+      - $ref: '#/components/parameters/CampaignId'
+    get:
+      summary: A campaign's orders, for fulfilment
+      description: Every order in the campaign, including cancelled and refunded ones, oldest first. next_statuses lists the steps the admin may set now.
+      operationId: adminListCampaignOrders
+      tags: [Admin]
+      responses:
+        '200':
+          description: The campaign's orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AdminOrder' }
+              examples:
+                tomatoes: { $ref: '#/components/examples/AdminOrderListTomatoes' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/campaigns/{campaign_id}/orders/status:
+    parameters:
+      - $ref: '#/components/parameters/CampaignId'
+    post:
+      summary: Move all of a campaign's orders one step at once (batch fulfilment)
+      description: >
+        Applies the status to every live order for which it is an allowed next step, and skips the rest
+        (a collection order is never set to dispatched). The first move to preparing turns a successful
+        campaign into fulfilling.
+      operationId: adminBatchOrderStatus
+      tags: [Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StatusUpdate' }
+            example: { status: preparing, note: Stock received from the seller }
+      responses:
+        '200':
+          description: How many orders moved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BatchStatusResult' }
+              example: { updated: 2, skipped: 2, campaign_status: fulfilling }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /admin/orders/{order_id}/status:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+    post:
+      summary: Move one order to its next step
+      description: >
+        Allowed steps: confirmed -> preparing; preparing -> dispatched (delivery only) or
+        ready_for_collection (collection only). Completed is set by the shopper's confirm-receipt.
+        Anything else is 400 INVALID_STATUS_STEP.
+      operationId: adminUpdateOrderStatus
+      tags: [Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StatusUpdate' }
+            example: { status: ready_for_collection, note: Ready at Woodvale Grove pickup desk }
+      responses:
+        '200':
+          description: The updated order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminOrder' }
+              examples:
+                dispatched: { $ref: '#/components/examples/AdminOrderDispatched' }
+        '400':
+          description: Not an allowed next step
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                invalidStep: { $ref: '#/components/examples/ErrorInvalidStatusStep' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /admin/locations:
+    get:
+      summary: All locations, including inactive ones
+      operationId: adminListLocations
+      tags: [Admin]
+      responses:
+        '200':
+          description: Every location
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AdminLocation' }
+              examples:
+                all: { $ref: '#/components/examples/AdminLocationList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Add a location
+      operationId: adminCreateLocation
+      tags: [Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocationCreate' }
+            example: { name: Thika, delivery_fee: 250, collection_point: 'Thika Town, Kenyatta Highway pickup desk' }
+      responses:
+        '201':
+          description: The new location
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLocation' }
+              examples:
+                thika: { $ref: '#/components/examples/AdminLocationNew' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: A location with this name already exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: A location with this name already exists., code: LOCATION_EXISTS }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /admin/locations/{location_id}:
+    parameters:
+      - $ref: '#/components/parameters/LocationId'
+    patch:
+      summary: Edit a location, or switch it on or off
+      description: >
+        Send only the fields to change. A new delivery_fee applies to new orders only;
+        existing orders keep their logistics_charge. is_active false hides it from GET /locations.
+      operationId: adminUpdateLocation
+      tags: [Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocationUpdate' }
+            example: { is_active: false }
+      responses:
+        '200':
+          description: The updated location
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLocation' }
+              examples:
+                inactive: { $ref: '#/components/examples/AdminLocationInactive' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A location with this name already exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -372,6 +964,22 @@ components:
       required: true
       schema: { type: integer, minimum: 1 }
 
+    SellerId:
+      name: seller_id
+      in: path
+      required: true
+      description: The seller_profiles id (not the user id).
+      schema: { type: integer, minimum: 1 }
+    ProductId:
+      name: product_id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    LocationId:
+      name: location_id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
   schemas:
     # ---------------- Accounts ----------------
     ConsumerRegister:
@@ -405,7 +1013,8 @@ components:
       pattern: '^\+?[0-9]{9,15}$'
       example: '+254712345678'
 
-
+    # One User shape for every role. `seller` holds the seller_profiles row:
+    # filled in for wholesalers, null for consumers and admins.
     User:
       type: object
       required: [id, full_name, phone, email, role, seller]
@@ -440,12 +1049,15 @@ components:
         access_token: { type: string }
         token_type: { type: string, const: Bearer }
 
-    
+    # ---------------- Catalogue ----------------
+    # A fixed list. The database column is free text; the API keeps it to these values.
+    # The frontend maps each value to a label and icon (rice_grains -> "Rice & grains").
     Category:
       type: string
       enum: [vegetables, fruits, rice_grains, flour, cooking_oil, sugar, pulses, dairy_eggs]
 
-    
+    # The product as a shopper sees it on a card.
+    # wholesale_price is deliberately NOT here: shoppers see the campaign's price.
     ProductSummary:
       type: object
       required: [id, name, unit, category, image_url, retail_price]
@@ -484,7 +1096,9 @@ components:
             What an order actually paid is its logistics_charge snapshot.
         collection_point: { type: string }
 
-
+    # ---------------- Campaigns ----------------
+    # A campaign card (home rails and browse grid).
+    # readOnly fields need the orders table, so only the server can work them out.
     CampaignSummary:
       type: object
       required: [id, title, status, campaign_price, min_quantity, max_quantity, deadline,
@@ -508,7 +1122,10 @@ components:
         savings_per_unit: { type: integer, readOnly: true, description: product.retail_price - campaign_price }
         # nested
         product: { $ref: '#/components/schemas/ProductSummary' }
-      
+      # Left to the frontend on purpose (presentation only): progress bar width,
+      # the minimum marker position, "3 days left" and "Ending soon".
+
+    # The campaign page and Join pop-up: the card fields plus what checkout needs.
     CampaignDetail:
       allOf:
         - $ref: '#/components/schemas/CampaignSummary'
@@ -655,6 +1272,255 @@ components:
         error: { type: string, example: This campaign is no longer taking orders. }
         code: { type: string, example: CAMPAIGN_CLOSED }
 
+    # ---------------- Seller ----------------
+    ApprovalStatus:
+      type: string
+      enum: [pending, approved, rejected]
+
+    # A product as its seller sees it: the card fields plus prices, stock and approval.
+    SellerProduct:
+      allOf:
+        - $ref: '#/components/schemas/ProductSummary'
+        - type: object
+          required: [description, wholesale_price, stock_quantity, approval_status, rejection_reason, created_at]
+          properties:
+            description: { type: [string, 'null'] }
+            wholesale_price: { type: integer, description: The seller's price per unit; becomes the campaign price. }
+            stock_quantity: { type: integer }
+            approval_status: { $ref: '#/components/schemas/ApprovalStatus' }
+            rejection_reason:
+              type: [string, 'null']
+              description: Filled in only when approval_status is rejected.
+            created_at: { type: string, format: date-time, readOnly: true }
+
+    ProductCreate:
+      type: object
+      required: [name, category, unit, wholesale_price, retail_price, stock_quantity]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 150 }
+        description: { type: string, maxLength: 2000 }
+        category: { $ref: '#/components/schemas/Category' }
+        unit: { type: string, maxLength: 40, example: 1kg }
+        image_url:
+          type: string
+          format: uri-reference
+          maxLength: 255
+          description: MVP stores a URL; no file upload.
+        wholesale_price: { type: integer, minimum: 1 }
+        retail_price: { type: integer, minimum: 1, description: Must be higher than wholesale_price (400 otherwise). }
+        stock_quantity: { type: integer, minimum: 0 }
+
+    LocationUnits:
+      type: object
+      required: [location_id, location_name, units, order_count]
+      properties:
+        location_id: { type: integer }
+        location_name: { type: string }
+        units: { type: integer }
+        order_count: { type: integer }
+
+    FulfilmentGroup:
+      type: object
+      required: [total_units, order_count, locations]
+      properties:
+        total_units: { type: integer }
+        order_count: { type: integer }
+        locations:
+          type: array
+          description: One row per location with live orders, most units first.
+          items: { $ref: '#/components/schemas/LocationUnits' }
+
+    SellerCampaignOrders:
+      type: object
+      required: [campaign, delivery, collection]
+      properties:
+        campaign: { $ref: '#/components/schemas/CampaignSummary' }
+        delivery: { $ref: '#/components/schemas/FulfilmentGroup' }
+        collection: { $ref: '#/components/schemas/FulfilmentGroup' }
+
+    # ---------------- Admin ----------------
+    RejectRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 255 }
+
+    AdminSeller:
+      type: object
+      required: [id, user, business_name, registration_number, business_address, verification_status,
+                 rejection_reason, reviewed_at, created_at]
+      properties:
+        id: { type: integer, description: The seller_profiles id. }
+        user:
+          type: object
+          required: [id, full_name, email, phone]
+          properties:
+            id: { type: integer }
+            full_name: { type: string }
+            email: { type: string, format: email }
+            phone: { type: [string, 'null'] }
+        business_name: { type: string }
+        registration_number: { type: string }
+        business_address: { type: string }
+        verification_status: { $ref: '#/components/schemas/ApprovalStatus' }
+        rejection_reason: { type: [string, 'null'] }
+        reviewed_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    AdminProduct:
+      allOf:
+        - $ref: '#/components/schemas/SellerProduct'
+        - type: object
+          required: [source, seller, reviewed_at]
+          properties:
+            source: { type: string, enum: [seller, platform] }
+            seller:
+              description: Null for platform-sourced products.
+              oneOf:
+                - type: object
+                  required: [id, business_name, verification_status]
+                  properties:
+                    id: { type: integer }
+                    business_name: { type: string }
+                    verification_status: { $ref: '#/components/schemas/ApprovalStatus' }
+                - type: 'null'
+            reviewed_at: { type: [string, 'null'], format: date-time }
+
+    # The admin's view of a campaign: every status, plus the settings and dates.
+    AdminCampaign:
+      allOf:
+        - $ref: '#/components/schemas/CampaignSummary'
+        - type: object
+          required: [platform_charge, min_order_quantity, max_per_user, cancellation_cutoff, closed_at, created_at]
+          properties:
+            platform_charge: { type: integer }
+            min_order_quantity: { type: integer }
+            max_per_user: { type: [integer, 'null'] }
+            cancellation_cutoff: { type: string, format: date-time }
+            closed_at: { type: [string, 'null'], format: date-time }
+            created_at: { type: string, format: date-time }
+
+    CampaignCreate:
+      type: object
+      required: [product_id, title, min_quantity, max_quantity, deadline]
+      properties:
+        product_id: { type: integer, description: Must be an approved product. }
+        title: { type: string, minLength: 3, maxLength: 150 }
+        min_quantity: { type: integer, minimum: 1 }
+        max_quantity: { type: integer, minimum: 1, description: At most the product's stock_quantity. }
+        min_order_quantity: { type: integer, minimum: 1, default: 1 }
+        max_per_user: { type: [integer, 'null'], minimum: 1, description: Leave out or null for no limit. }
+        platform_charge: { type: integer, minimum: 0, default: 10 }
+        deadline: { type: string, format: date-time }
+        cancellation_cutoff:
+          type: string
+          format: date-time
+          description: Defaults to deadline minus 3 days. Must be on or before the deadline.
+
+    CampaignUpdate:
+      type: object
+      description: Any CampaignCreate field except product_id; send only what changes.
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 3, maxLength: 150 }
+        min_quantity: { type: integer, minimum: 1 }
+        max_quantity: { type: integer, minimum: 1 }
+        min_order_quantity: { type: integer, minimum: 1 }
+        max_per_user: { type: [integer, 'null'], minimum: 1 }
+        platform_charge: { type: integer, minimum: 0 }
+        deadline: { type: string, format: date-time }
+        cancellation_cutoff: { type: string, format: date-time }
+
+    CampaignCloseResult:
+      type: object
+      required: [campaign, outcome, orders_confirmed, orders_refunded]
+      properties:
+        campaign: { $ref: '#/components/schemas/AdminCampaign' }
+        outcome: { type: string, enum: [successful, failed] }
+        orders_confirmed: { type: integer, description: Paid orders moved to confirmed (successful only). }
+        orders_refunded: { type: integer, description: Live orders refunded automatically (failed only). }
+
+    # An order as the admin sees it while fulfilling: includes who and where.
+    AdminOrder:
+      type: object
+      required: [id, order_no, status, quantity, total_amount, fulfilment, location, delivery_address,
+                 consumer, created_at, next_statuses]
+      properties:
+        id: { type: integer }
+        order_no: { type: string }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        quantity: { type: integer }
+        total_amount: { type: integer }
+        fulfilment: { $ref: '#/components/schemas/Fulfilment' }
+        location:
+          type: object
+          required: [id, name, collection_point]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            collection_point: { type: string }
+        delivery_address: { type: [string, 'null'] }
+        consumer:
+          type: object
+          required: [id, full_name, phone]
+          properties:
+            id: { type: integer }
+            full_name: { type: string }
+            phone: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+        next_statuses:
+          type: array
+          readOnly: true
+          description: The steps the admin may set now. Empty when nothing is allowed.
+          items: { $ref: '#/components/schemas/AdminSettableStatus' }
+
+    AdminSettableStatus:
+      type: string
+      enum: [preparing, dispatched, ready_for_collection]
+
+    StatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: '#/components/schemas/AdminSettableStatus' }
+        note: { type: [string, 'null'], maxLength: 255, description: Shown on the shopper's timeline. }
+
+    BatchStatusResult:
+      type: object
+      required: [updated, skipped, campaign_status]
+      properties:
+        updated: { type: integer }
+        skipped: { type: integer, description: Live orders for which this was not an allowed step. }
+        campaign_status:
+          type: string
+          enum: [draft, active, successful, failed, fulfilling, completed, cancelled]
+
+    AdminLocation:
+      allOf:
+        - $ref: '#/components/schemas/Location'
+        - type: object
+          required: [is_active]
+          properties:
+            is_active: { type: boolean }
+
+    LocationCreate:
+      type: object
+      required: [name, delivery_fee, collection_point]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        delivery_fee: { type: integer, minimum: 0 }
+        collection_point: { type: string, minLength: 3, maxLength: 150 }
+        is_active: { type: boolean, default: true }
+
+    LocationUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        delivery_fee: { type: integer, minimum: 0 }
+        collection_point: { type: string, minLength: 3, maxLength: 150 }
+        is_active: { type: boolean }
+
   responses:
     Unauthorized:
       description: Missing, invalid or expired token, or wrong email/password
@@ -694,6 +1560,13 @@ components:
   # appears, `*name` reuses it later. An anchor must come BEFORE its aliases
   # in the file, so the building blocks are defined first.
   # ------------------------------------------------------------------
+    BadRequest:
+      description: A business rule was broken; the code says which
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: Only active campaigns can be closed., code: CAMPAIGN_NOT_ACTIVE }
+
   examples:
     # ---------- building blocks ----------
     LocationList:
@@ -791,7 +1664,7 @@ components:
         access_token: eyJhbGciOiJIUzI1NiJ9.example.signature
         token_type: Bearer
 
-    
+    # ---------- order requests ----------
     OrderCreateDelivery:
       summary: Delivery to an address
       value: { campaign_id: 1, quantity: 5, fulfilment: delivery, phone: '+254712345678', location_id: 2, delivery_address: 'Mwiki Road, Apartment 4B, Kasarani' }
@@ -800,7 +1673,7 @@ components:
       summary: Collect from a pickup point (no address needed)
       value: { campaign_id: 1, quantity: 3, fulfilment: collection, phone: '+254712345678', location_id: 1 }
 
-    
+    # ---------- full orders (OrderDetail) ----------
     OrderPaidDelivery:
       summary: A new delivery order, just paid
       value:
@@ -874,8 +1747,8 @@ components:
           min_quantity: 15
           max_quantity: 40
           deadline: '2026-11-08T18:00:00+03:00'
-          ordered_quantity: 31
-          households: 9
+          ordered_quantity: 17
+          households: 4
           min_reached: true
           sold_out: false
           savings_per_unit: 150
@@ -905,7 +1778,7 @@ components:
         can_cancel: false
         refund: null
         location: *westlands
-        campaign: *tomatoCampaign   
+        campaign: *tomatoCampaign    # still fulfilling: it completes when EVERY order is done
         payment: *payment1
         history:
           - *h1
@@ -914,7 +1787,7 @@ components:
           - *h4
           - { status: completed, note: Receipt confirmed by consumer, created_at: '2026-11-12T16:20:00+03:00' }
 
-
+    # ---------- the My Orders list (OrderSummary: no prices, payment or history) ----------
     OrderList:
       summary: Three orders in different states
       value:
@@ -947,3 +1820,220 @@ components:
     ErrorNotReady:
       summary: Receipt can only be confirmed after dispatch or when ready for collection
       value: { error: This order has not been dispatched or made ready for collection yet., code: ORDER_NOT_READY }
+
+    # ================== Account, seller and admin (SS.03) ==================
+    # Same data as seed.py: user ids 1-8, seller profiles 1-3, products 1-13, campaigns 1-8, orders 1-11.
+    MeSellerPending:
+      summary: Keith, a wholesaler still waiting for approval
+      value:
+        id: 8
+        full_name: Keith Kamau
+        phone: '+254722000003'
+        email: keith@test.com
+        role: seller
+        seller: { business_name: Kitengela Dairy Farm, business_address: 'Kitengela Town, Namanga Road', verification_status: pending, rejection_reason: null }
+
+    SellerProductList:
+      summary: Davy's products in every approval status
+      value:
+        - { id: 13, name: Tomatoes, unit: 5kg crate, category: vegetables, image_url: null, retail_price: 600, description: 'Ripe tomatoes, 5kg crate.', wholesale_price: 450, stock_quantity: 70, approval_status: approved, rejection_reason: null, created_at: '2026-11-08T10:00:00+03:00' }
+        - { id: 12, name: Irish potatoes, unit: 10kg bag, category: vegetables, image_url: null, retail_price: 750, description: 'Irish potatoes, 10kg bag.', wholesale_price: 550, stock_quantity: 90, approval_status: rejected, rejection_reason: Unit weight and photo missing. Please resubmit., created_at: '2026-11-08T10:00:00+03:00' }
+        - &beansPending { id: 6, name: Rosecoco beans, unit: 1kg, category: pulses, image_url: null, retail_price: 180, description: Quality Rosecoco beans for everyday meals., wholesale_price: 130, stock_quantity: 200, approval_status: pending, rejection_reason: null, created_at: '2026-11-08T10:00:00+03:00' }
+        - { id: 3, name: Cooking oil, unit: 2 litres, category: cooking_oil, image_url: null, retail_price: 520, description: 'Refined vegetable cooking oil, 2 litre bottle.', wholesale_price: 460, stock_quantity: 250, approval_status: approved, rejection_reason: null, created_at: '2026-11-08T10:00:00+03:00' }
+
+    ProductCreateBeans:
+      summary: A new product (it starts as pending)
+      value: { name: Rosecoco beans, description: Quality Rosecoco beans for everyday meals., category: pulses, unit: 1kg, wholesale_price: 130, retail_price: 180, stock_quantity: 200 }
+
+    SellerProductPending:
+      summary: The product just submitted
+      value: *beansPending
+
+    SellerCampaignList:
+      summary: Campaigns on Davy's products, in different statuses
+      value:
+        - { id: 8, title: Tomato Crate Share, status: active, campaign_price: 450, min_quantity: 15, max_quantity: 40, deadline: '2026-11-14T18:00:00+03:00', ordered_quantity: 12, households: 5, min_reached: false, sold_out: false, savings_per_unit: 150, product: *tomatoes }
+        - { id: 3, title: Cooking Oil Family Deal, status: active, campaign_price: 460, min_quantity: 20, max_quantity: 120, deadline: '2026-11-23T18:00:00+03:00', ordered_quantity: 0, households: 0, min_reached: false, sold_out: false, savings_per_unit: 60, product: { id: 3, name: Cooking oil, unit: 2 litres, category: cooking_oil, image_url: null, retail_price: 520 } }
+        - *tomatoCampaign
+        - { id: 6, title: Hass Avocado Tray Share, status: failed, campaign_price: 520, min_quantity: 20, max_quantity: 60, deadline: '2026-11-08T18:00:00+03:00', ordered_quantity: 0, households: 0, min_reached: false, sold_out: false, savings_per_unit: 130, product: { id: 9, name: Hass avocados, unit: 5kg tray, category: fruits, image_url: null, retail_price: 650 } }
+
+    SellerCampaignOrdersTomatoes:
+      summary: What Davy must supply for the fulfilling tomato campaign
+      value:
+        campaign: *tomatoCampaign
+        delivery:
+          total_units: 9
+          order_count: 2
+          locations:
+            - { location_id: 2, location_name: Kasarani, units: 5, order_count: 1 }
+            - { location_id: 4, location_name: Rongai, units: 4, order_count: 1 }
+        collection:
+          total_units: 8
+          order_count: 2
+          locations:
+            - { location_id: 1, location_name: Nairobi CBD, units: 6, order_count: 1 }
+            - { location_id: 3, location_name: Westlands, units: 2, order_count: 1 }
+
+    AdminSellerListPending:
+      summary: One seller waiting for review
+      value:
+        - &keithPending
+          id: 3
+          user: { id: 8, full_name: Keith Kamau, email: keith@test.com, phone: '+254722000003' }
+          business_name: Kitengela Dairy Farm
+          registration_number: SELL-456-321
+          business_address: 'Kitengela Town, Namanga Road'
+          verification_status: pending
+          rejection_reason: null
+          reviewed_at: null
+          created_at: '2026-11-12T14:20:00+03:00'
+
+    AdminSellerApproved:
+      summary: Keith after approval
+      value:
+        id: 3
+        user: { id: 8, full_name: Keith Kamau, email: keith@test.com, phone: '+254722000003' }
+        business_name: Kitengela Dairy Farm
+        registration_number: SELL-456-321
+        business_address: 'Kitengela Town, Namanga Road'
+        verification_status: approved
+        rejection_reason: null
+        reviewed_at: '2026-11-13T09:05:00+03:00'
+        created_at: '2026-11-12T14:20:00+03:00'
+
+    AdminProductListPending:
+      summary: One product waiting for review
+      value:
+        - { id: 6, name: Rosecoco beans, unit: 1kg, category: pulses, image_url: null, retail_price: 180, description: Quality Rosecoco beans for everyday meals., wholesale_price: 130, stock_quantity: 200, approval_status: pending, rejection_reason: null, created_at: '2026-11-08T10:00:00+03:00', source: seller, seller: { id: 2, business_name: Davy Fresh Supplies, verification_status: approved }, reviewed_at: null }
+
+    CampaignCreateSugar:
+      summary: A sugar campaign (campaign_price is copied from wholesale_price)
+      value: { product_id: 4, title: White Sugar Wholesale Deal, min_quantity: 50, max_quantity: 300, min_order_quantity: 3, max_per_user: 10, platform_charge: 10, deadline: '2026-12-13T18:00:00+03:00', cancellation_cutoff: '2026-12-10T18:00:00+03:00' }
+
+    AdminCampaignDraft:
+      summary: The new draft
+      value: &sugarDraft
+        id: 4
+        title: White Sugar Wholesale Deal
+        status: draft
+        campaign_price: 180
+        min_quantity: 50
+        max_quantity: 300
+        deadline: '2026-12-13T18:00:00+03:00'
+        ordered_quantity: 0
+        households: 0
+        min_reached: false
+        sold_out: false
+        savings_per_unit: 25
+        product: { id: 4, name: White sugar, unit: 1kg, category: sugar, image_url: null, retail_price: 205 }
+        platform_charge: 10
+        min_order_quantity: 3
+        max_per_user: 10
+        cancellation_cutoff: '2026-12-10T18:00:00+03:00'
+        closed_at: null
+        created_at: '2026-11-13T21:00:00+03:00'
+
+    AdminCampaignList:
+      summary: A draft and a fulfilling campaign
+      value:
+        - *sugarDraft
+        - id: 7
+          title: Tomato Crate Share (early November)
+          status: fulfilling
+          campaign_price: 450
+          min_quantity: 15
+          max_quantity: 40
+          deadline: '2026-11-08T18:00:00+03:00'
+          ordered_quantity: 17
+          households: 4
+          min_reached: true
+          sold_out: false
+          savings_per_unit: 150
+          product: *tomatoes
+          platform_charge: 10
+          min_order_quantity: 1
+          max_per_user: 6
+          cancellation_cutoff: '2026-11-07T18:00:00+03:00'
+          closed_at: '2026-11-08T18:00:00+03:00'
+          created_at: '2026-10-30T09:00:00+03:00'
+
+    CampaignCloseFailed:
+      summary: The avocado campaign missed its minimum; both orders refunded automatically
+      value:
+        outcome: failed
+        orders_confirmed: 0
+        orders_refunded: 2
+        campaign:
+          id: 6
+          title: Hass Avocado Tray Share
+          status: failed
+          campaign_price: 520
+          min_quantity: 20
+          max_quantity: 60
+          deadline: '2026-11-08T18:00:00+03:00'
+          ordered_quantity: 0
+          households: 0
+          min_reached: false
+          sold_out: false
+          savings_per_unit: 130
+          product: { id: 9, name: Hass avocados, unit: 5kg tray, category: fruits, image_url: null, retail_price: 650 }
+          platform_charge: 10
+          min_order_quantity: 1
+          max_per_user: 5
+          cancellation_cutoff: '2026-11-05T18:00:00+03:00'
+          closed_at: '2026-11-08T18:00:00+03:00'
+          created_at: '2026-10-28T09:00:00+03:00'
+
+    AdminOrderListTomatoes:
+      summary: The tomato campaign's four orders at different steps
+      value:
+        - { id: 1, order_no: ODR-10001, status: ready_for_collection, quantity: 2, total_amount: 920, fulfilment: collection, location: { id: 3, name: Westlands, collection_point: 'Woodvale Grove pickup desk, ground floor' }, delivery_address: null, consumer: { id: 2, full_name: Achieng Otieno, phone: '+254712345678' }, created_at: '2026-11-04T09:15:00+03:00', next_statuses: [] }
+        - { id: 7, order_no: ODR-10007, status: completed, quantity: 6, total_amount: 2760, fulfilment: collection, location: { id: 1, name: Nairobi CBD, collection_point: 'Moi Avenue pickup desk, opposite Kenya Archives' }, delivery_address: null, consumer: { id: 3, full_name: Dan Kimani, phone: '+254711000002' }, created_at: '2026-11-05T10:00:00+03:00', next_statuses: [] }
+        - { id: 8, order_no: ODR-10008, status: dispatched, quantity: 5, total_amount: 2450, fulfilment: delivery, location: { id: 2, name: Kasarani, collection_point: 'Mwiki Road pickup point, next to Seasons stage' }, delivery_address: 'Thika Road, Zimmerman, Kasarani', consumer: { id: 4, full_name: Panther Njoroge, phone: '+254711000003' }, created_at: '2026-11-06T11:30:00+03:00', next_statuses: [] }
+        - { id: 9, order_no: ODR-10009, status: preparing, quantity: 4, total_amount: 2040, fulfilment: delivery, location: { id: 4, name: Rongai, collection_point: 'Rongai main stage pickup point, Magadi Road' }, delivery_address: 'Ongata Rongai, Gate 3, Tuskys Road', consumer: { id: 5, full_name: Wanjiku Mwangi, phone: '+254711000004' }, created_at: '2026-11-07T08:45:00+03:00', next_statuses: [dispatched] }
+
+    AdminLocationList:
+      summary: Every location, active or not
+      value:
+        - { id: 1, name: Nairobi CBD, delivery_fee: 100, collection_point: 'Moi Avenue pickup desk, opposite Kenya Archives', is_active: true }
+        - { id: 2, name: Kasarani, delivery_fee: 150, collection_point: 'Mwiki Road pickup point, next to Seasons stage', is_active: true }
+        - { id: 3, name: Westlands, delivery_fee: 150, collection_point: 'Woodvale Grove pickup desk, ground floor', is_active: true }
+        - { id: 4, name: Rongai, delivery_fee: 200, collection_point: 'Rongai main stage pickup point, Magadi Road', is_active: true }
+        - { id: 5, name: Kisumu, delivery_fee: 450, collection_point: 'Oginga Odinga Street pickup desk, Kisumu CBD', is_active: false }
+
+    ErrorSellerNotApproved:
+      summary: A pending seller tried to submit a product
+      value: { error: Your seller account is waiting for approval., code: SELLER_NOT_APPROVED }
+    ErrorProductNotApproved:
+      summary: The product is not approved
+      value: { error: Only approved products can be used for a campaign., code: PRODUCT_NOT_APPROVED }
+    ErrorCampaignNotDraft:
+      summary: Tried to edit a campaign that is no longer a draft
+      value: { error: Only draft campaigns can be edited., code: CAMPAIGN_NOT_DRAFT }
+    ErrorInvalidStatusStep:
+      summary: A step that is not allowed for this order
+      value: { error: A collection order cannot be marked as dispatched., code: INVALID_STATUS_STEP }
+    AdminSellerRejected:
+      summary: Keith after rejection
+      value: { id: 3, user: { id: 8, full_name: Keith Kamau, email: keith@test.com, phone: '+254722000003' }, business_name: Kitengela Dairy Farm, registration_number: SELL-456-321, business_address: 'Kitengela Town, Namanga Road', verification_status: rejected, rejection_reason: Business registration number could not be verified., reviewed_at: '2026-11-13T09:05:00+03:00', created_at: '2026-11-12T14:20:00+03:00' }
+    AdminProductApproved:
+      summary: The beans after approval
+      value: { id: 6, name: Rosecoco beans, unit: 1kg, category: pulses, image_url: null, retail_price: 180, description: Quality Rosecoco beans for everyday meals., wholesale_price: 130, stock_quantity: 200, approval_status: approved, rejection_reason: null, created_at: '2026-11-08T10:00:00+03:00', source: seller, seller: { id: 2, business_name: Davy Fresh Supplies, verification_status: approved }, reviewed_at: '2026-11-13T09:10:00+03:00' }
+    AdminProductRejected:
+      summary: The beans after rejection
+      value: { id: 6, name: Rosecoco beans, unit: 1kg, category: pulses, image_url: null, retail_price: 180, description: Quality Rosecoco beans for everyday meals., wholesale_price: 130, stock_quantity: 200, approval_status: rejected, rejection_reason: Unit weight and photo missing. Please resubmit., created_at: '2026-11-08T10:00:00+03:00', source: seller, seller: { id: 2, business_name: Davy Fresh Supplies, verification_status: approved }, reviewed_at: '2026-11-13T09:10:00+03:00' }
+    AdminCampaignActive:
+      summary: The sugar draft after activation
+      value: { id: 4, title: White Sugar Wholesale Deal, status: active, campaign_price: 180, min_quantity: 50, max_quantity: 300, deadline: '2026-12-13T18:00:00+03:00', ordered_quantity: 0, households: 0, min_reached: false, sold_out: false, savings_per_unit: 25, product: { id: 4, name: White sugar, unit: 1kg, category: sugar, image_url: null, retail_price: 205 }, platform_charge: 10, min_order_quantity: 3, max_per_user: 10, cancellation_cutoff: '2026-12-10T18:00:00+03:00', closed_at: null, created_at: '2026-11-13T21:00:00+03:00' }
+    AdminCampaignCancelled:
+      summary: The sugar draft after cancelling
+      value: { id: 4, title: White Sugar Wholesale Deal, status: cancelled, campaign_price: 180, min_quantity: 50, max_quantity: 300, deadline: '2026-12-13T18:00:00+03:00', ordered_quantity: 0, households: 0, min_reached: false, sold_out: false, savings_per_unit: 25, product: { id: 4, name: White sugar, unit: 1kg, category: sugar, image_url: null, retail_price: 205 }, platform_charge: 10, min_order_quantity: 3, max_per_user: 10, cancellation_cutoff: '2026-12-10T18:00:00+03:00', closed_at: '2026-11-13T21:30:00+03:00', created_at: '2026-11-13T21:00:00+03:00' }
+    AdminOrderDispatched:
+      summary: Wanjiku's delivery order after it was dispatched
+      value: { id: 9, order_no: ODR-10009, status: dispatched, quantity: 4, total_amount: 2040, fulfilment: delivery, location: { id: 4, name: Rongai, collection_point: 'Rongai main stage pickup point, Magadi Road' }, delivery_address: 'Ongata Rongai, Gate 3, Tuskys Road', consumer: { id: 5, full_name: Wanjiku Mwangi, phone: '+254711000004' }, created_at: '2026-11-07T08:45:00+03:00', next_statuses: [] }
+    AdminLocationNew:
+      summary: A new location
+      value: { id: 6, name: Thika, delivery_fee: 250, collection_point: 'Thika Town, Kenyatta Highway pickup desk', is_active: true }
+    AdminLocationInactive:
+      summary: Kisumu switched off
+      value: { id: 5, name: Kisumu, delivery_fee: 450, collection_point: 'Oginga Odinga Street pickup desk, Kisumu CBD', is_active: false }
