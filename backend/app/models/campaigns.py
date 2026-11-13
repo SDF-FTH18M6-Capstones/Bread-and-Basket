@@ -1,7 +1,7 @@
 from .base import BaseModel
 from decimal import Decimal
 from sqlalchemy import String, Numeric, CheckConstraint, func, DateTime, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from .enums import CampaignStatus, pg_enum
 
@@ -41,3 +41,6 @@ class Campaign(BaseModel):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+    product: Mapped["Product"] = relationship(back_populates="campaigns")
+    orders: Mapped[list["Order"]] = relationship(back_populates="campaign")
