@@ -17,6 +17,7 @@ def create_app(config_class=None):
     jwt.init_app(app)
     api.init_app(app)
 
+    from . import models
     from .health import blp as health_blp
 
     api.register_blueprint(health_blp)
