@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from app import create_app
 from app.extensions import db
-from app.models import User, SellerProfile
+from app.models import User, SellerProfile, Location
 from app.models.enums import *
 
 app = create_app()
@@ -93,3 +93,41 @@ with app.app_context():
     )
 
     # creating locations
+    nairobi = Location(
+        name= "Nairobi",
+        delivery_fee:100,
+        collection_point="Moi Avenue pickup desk, opposite Kenya Archives",
+        is_active=,
+    )
+
+nairobi = Location(
+        name=,
+        delivery_fee:,
+        collection_point=,
+        is_active=,
+    )
+
+nairobi = Location(
+        name=,
+        delivery_fee:,
+        collection_point=,
+        is_active=,
+    )
+
+nairobi = Location(
+        name=,
+        delivery_fee:,
+        collection_point=,
+        is_active=,
+    )
+
+nairobi = Location(
+        name=,
+        delivery_fee:,
+        collection_point=,
+        is_active=,
+    )
+
+
+
+
