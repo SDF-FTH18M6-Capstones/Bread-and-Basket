@@ -16,8 +16,11 @@ export function AuthProvider({ children }) {
     return saveSession(await authApi.login(credentials));
   }
 
-  async function register(details) {
-    return saveSession(await authApi.registerConsumer(details));
+  // role is "consumer" or "seller", the same role names the API uses.
+  async function register(role, details) {
+    const call =
+      role === "seller" ? authApi.registerWholesaler : authApi.registerConsumer;
+    return saveSession(await call(details));
   }
 
   return (
