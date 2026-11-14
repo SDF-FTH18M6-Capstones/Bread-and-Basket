@@ -1,22 +1,20 @@
-// Removes spaces and dashes, so "0712 345-678" becomes "0712345678".
+
 export const cleanPhone = (phone) =>
   phone.split(" ").join("").split("-").join("");
 
-// Rough shape check: text, one "@", then a domain with a dot inside it, and no spaces.
+
 function isValidEmail(email) {
   if (email.includes(" ")) return false;
 
   const parts = email.split("@");
-  if (parts.length !== 2) return false; // must have exactly one "@"
+  if (parts.length !== 2) return false; 
 
   const [name, domain] = parts;
   if (name === "") return false;
 
-  // needs a dot that has at least one character before it and one after it
   return domain.slice(1, -1).includes(".");
 }
 
-// Optional "+" at the start, then 9 to 15 digits and nothing else (same rule as the API contract).
 function isValidPhone(phone) {
   const digits = phone.startsWith("+") ? phone.slice(1) : phone;
   if (digits.length < 9 || digits.length > 15) return false;
@@ -33,7 +31,6 @@ function checkEmail(email) {
   return null;
 }
 
-// Required text field with a maximum length from the API contract.
 function checkRequired(value, emptyMessage, max) {
   const text = value.trim();
   if (!text) return emptyMessage;
@@ -49,7 +46,6 @@ export function validateLogin({ email, password }) {
   return errors;
 }
 
-// role is "consumer" or "seller". Sellers also need the three business fields.
 export function validateRegister(values, role) {
   const errors = {};
 
