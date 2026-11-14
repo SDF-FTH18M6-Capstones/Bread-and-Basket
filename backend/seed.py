@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from datetime import datetime, timedelta, timezone
-from sqlalchemy import func, text
+from sqlalchemy import func, select, text
 from app import create_app
 from app.extensions import db
 from app.models import (
@@ -199,16 +199,17 @@ def advance(order, steps, by):
         )
 
 
-def live_stats(campaign):
+def live_stats(campaign) -> tuple[int, int]:
     """Units and households from orders that are not cancelled or refunded."""
-    return db.session.execute(
-        db.select(
+    units, households = db.session.execute(
+        select(
             func.sum(Order.quantity), func.count(func.distinct(Order.consumer_id))
         ).where(
             Order.campaign_id == campaign.id,
             Order.status.not_in([OrderStatus.CANCELLED, OrderStatus.REFUNDED]),
         )
     ).one()
+    return units or 0, households
 
 
 with app.app_context():
@@ -575,7 +576,7 @@ with app.app_context():
     db.session.flush()
 
     for c in campaigns:
-        p = db.session.get(Product, c.product_id)
+        p = c.product
         assert (
             p.approval_status == ApprovalStatus.APPROVED
         ), f"{c.title}: product not approved"
