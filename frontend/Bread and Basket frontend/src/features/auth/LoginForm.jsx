@@ -2,8 +2,16 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { homeFor } from "../../lib/roles";
+import { USE_MOCKS } from "../../api/auth";
 import FormField from "./FormField";
 import { validateLogin } from "./validation";
+
+// Shown only while the app runs on mock data. Fills the form so you can log in with one more click.
+const DEMO_ACCOUNTS = [
+  { label: "Consumer", email: "consumer@test.com" },
+  { label: "Seller", email: "seller@test.com" },
+  { label: "Admin", email: "admin@test.com" },
+];
 
 export default function LoginForm() {
   const { login } = useAuth();
@@ -17,6 +25,12 @@ export default function LoginForm() {
     const { name, value } = e.target;
     setValues((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
+    setFormError("");
+  }
+
+  function fillDemo(email) {
+    setValues({ email, password: "password123" });
+    setErrors({});
     setFormError("");
   }
 
@@ -80,6 +94,24 @@ export default function LoginForm() {
       >
         {submitting ? "Logging in..." : "Log in"}
       </button>
+
+      {USE_MOCKS && (
+        <div className="rounded-2xl bg-canvas p-3.5">
+          <strong className="text-sm">Demo login</strong>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                onClick={() => fillDemo(account.email)}
+                className="cursor-pointer rounded-full border-[1.5px] border-forest bg-white px-3.5 py-2 font-semibold text-forest"
+              >
+                {account.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </form>
   );
 }
