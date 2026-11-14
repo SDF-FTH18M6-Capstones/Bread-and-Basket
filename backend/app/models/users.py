@@ -24,7 +24,7 @@ class User(BaseModel):
     )
     orders: Mapped[list["Order"]] = relationship(back_populates="consumer")
 
-    def set_password(self, raw_password: str) -> None:
+    def set_password(self, raw_password: str):
         self.password_hash = bycrypt.generate_password_hash(raw_password).decode(
             "utf-8"
         )
