@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   CATEGORY_ICON, REFUND_REASON, TONES,
   formatDateTime, formatMoney, formatRelative, imageUrl, progressSteps, statusOf, withArea,
-} from './orders'
+} from '../../mocks/orders/orders'
 
 /* Shared pieces for the orders list and the order tracking page */
 
@@ -183,29 +183,29 @@ export function EmptyState({ icon, title, text, children }) {
 }
 
 export function ErrorState({ error, loginUrl, onRetry, backUrl }) {
-  const signedOut = error.status === 401
-  const forbidden = error.status === 403
-  const notFound = error.status === 404
-  return (
-    <div role="alert">
-      <EmptyState
-        icon={signedOut ? '🔑' : forbidden ? '🚫' : notFound ? '🔍' : '🧺'}
-        title={
-          signedOut ? 'You’re signed out'
-            : forbidden ? 'Not available for this account'
-              : notFound ? 'Order not found'
-                : 'Something went wrong'
-        }
-        text={error.message}
-      >
-        {signedOut && <a href={loginUrl} className={btnPrimary}>Log in</a>}
-        {notFound && backUrl && <a href={backUrl} className={btnPrimary}>Back to my orders</a>}
-        {!signedOut && !forbidden && !notFound && onRetry && (
-          <button type="button" onClick={onRetry} className={btnPrimary}>Try again</button>
-        )}
-      </EmptyState>
-    </div>
-  )
+  // const signedOut = error.status === 401
+  // const forbidden = error.status === 403
+  // const notFound = error.status === 404
+  // return (
+  //   <div role="alert">
+  //     <EmptyState
+  //       icon={signedOut ? '🔑' : forbidden ? '🚫' : notFound ? '🔍' : '🧺'}
+  //       title={
+  //         signedOut ? 'You’re signed out'
+  //           : forbidden ? 'Not available for this account'
+  //             : notFound ? 'Order not found'
+  //               : 'Something went wrong'
+  //       }
+  //       text={error.message}
+  //     >
+  //       {signedOut && <a href={loginUrl} className={btnPrimary}>Log in</a>}
+  //       {notFound && backUrl && <a href={backUrl} className={btnPrimary}>Back to my orders</a>}
+  //       {!signedOut && !forbidden && !notFound && onRetry && (
+  //         <button type="button" onClick={onRetry} className={btnPrimary}>Try again</button>
+  //       )}
+  //     </EmptyState>
+  //   </div>
+  // )
 }
 
 export function DemoNote() {

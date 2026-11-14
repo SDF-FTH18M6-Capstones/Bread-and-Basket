@@ -3,11 +3,11 @@ import {
   ApiError, HISTORY_TEXT, SAMPLE_NOW,
   cancelOrder, canCancelNow, canConfirmReceipt, confirmReceipt, fetchOrder,
   formatDateTime, formatMoney, formatRelative, isDemoUrl, statusOf, withArea,
-} from './orders'
+} from '../../mocks/orders/orders'
 import {
   DemoNote, DriveProgress, ErrorState, Fulfilment, Loading, ProductThumb,
   ProgressSteps, RefundNote, StatusBadge, btnDanger, btnSuccess,
-} from './OrderParts'
+} from './ordersParts'
 
 /* Order tracking page — GET /api/orders/{order_id}
    Cancel → POST /api/orders/{id}/cancel, "I've received it" → POST /api/orders/{id}/confirm-receipt

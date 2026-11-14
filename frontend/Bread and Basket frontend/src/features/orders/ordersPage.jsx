@@ -3,11 +3,11 @@ import {
   ApiError, SAMPLE_NOW,
   cancelOrder, canCancelNow, canConfirmReceipt, confirmReceipt, fetchMyOrders,
   formatDateTime, formatMoney, isDemoUrl, statusOf, toSummary,
-} from './orders'
+} from '../../mocks/orders/orders'
 import {
   DemoNote, DriveProgress, EmptyState, ErrorState, Fulfilment, Loading, ProductThumb,
   ProgressSteps, RefundNote, StatusBadge, btnDanger, btnPrimary, btnSuccess,
-} from './OrderParts'
+} from './ordersParts'
 
 /* "My orders" page — GET /api/orders
    Cancel → POST /api/orders/{id}/cancel, "I've received it" → POST /api/orders/{id}/confirm-receipt
@@ -25,6 +25,7 @@ const FILTERS = [
  *  - loginUrl, browseUrl        links for the signed-out and empty states
  *  - orderUrl: (order) => url   link to the tracking page (default /orders/{id})
  */
+
 export default function OrdersPage({
   loginUrl = '/login',
   browseUrl = '/',
