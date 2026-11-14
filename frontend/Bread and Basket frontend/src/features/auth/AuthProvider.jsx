@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AuthContext } from "./authContext";
 import * as authApi from "../../api/auth";
 
@@ -18,6 +18,23 @@ export function AuthProvider({ children }) {
   });
 
   const [loading, setLoading] = useState(false);
+
+  // Listen for expired or invalid authentication sessions.
+  useEffect(() => {
+    function handleSessionExpired() {
+      setUser(null);
+      setToken(null);
+
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+    }
+
+    window.addEventListener("auth:session-expired", handleSessionExpired);
+
+    return () => {
+      window.removeEventListener("auth:session-expired", handleSessionExpired);
+    };
+  }, []);
 
   function saveSession(data) {
     setUser(data.user);
@@ -57,6 +74,7 @@ export function AuthProvider({ children }) {
   function logout() {
     setUser(null);
     setToken(null);
+
     localStorage.removeItem("user");
     localStorage.removeItem("token");
   }

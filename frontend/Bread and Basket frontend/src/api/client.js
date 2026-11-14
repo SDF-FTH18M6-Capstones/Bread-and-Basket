@@ -10,21 +10,41 @@ export class ApiError extends Error {
   }
 }
 
+function getAuthToken() {
+  return localStorage.getItem("token");
+}
+
+function handleUnauthorized() {
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
+
+  window.dispatchEvent(new Event("auth:session-expired"));
+}
+
 export async function request(path, { method = "GET", body } = {}) {
   let response;
+
+  const token = getAuthToken();
+
+  const headers = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+
+  // Automatically attach the logged-in user's access token.
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   try {
     response = await fetch(`${BASE_URL}${path}`, {
       method,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
+      headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new ApiError(
-      "Cannot reach the server. Check your connection and try again."
+      "Cannot reach the server. Check your connection and try again.",
     );
   }
 
@@ -37,10 +57,21 @@ export async function request(path, { method = "GET", body } = {}) {
   }
 
   if (!response.ok) {
+    // Clear an invalid or expired session when a protected request
+    // receives an unauthorized response.
+    if (response.status === 401 && token && path !== "/login") {
+      handleUnauthorized();
+    }
+
     const message =
       data?.error || data?.message || "Something went wrong. Please try again.";
 
-    throw new ApiError(message, response.status, data?.fieldErrors || {}, data?.code || null);
+    throw new ApiError(
+      message,
+      response.status,
+      data?.fieldErrors || {},
+      data?.code || null,
+    );
   }
 
   return data;
