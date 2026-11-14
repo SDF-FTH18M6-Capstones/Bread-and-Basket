@@ -15,6 +15,7 @@ class AuthService:
             full_name=data["full_name"],
             phone=data["phone"],
             email=data["email"],
+            role=UserRole.CONSUMER,
         )
 
         consumer.set_password(data["password"])
@@ -31,9 +32,10 @@ class AuthService:
             full_name=data["full_name"],
             phone=data["phone"],
             email=data["email"],
+            role=UserRole.SELLER,
         )
 
-        sellersProfile = SellerProfile(
+        seller_profile = SellerProfile(
             user=seller,
             business_name=data["business_name"],
             registration_number=data["registration_number"],
@@ -41,8 +43,7 @@ class AuthService:
         )
 
         seller.set_password(data["password"])
-        seller.role = UserRole.SELLER
-        db.session.add_all([seller, sellersProfile])
+        db.session.add_all([seller, seller_profile])
         db.session.commit()
 
         return self._auth_response(seller)
@@ -57,7 +58,7 @@ class AuthService:
 
     def _auth_response(self, user):
         token = create_access_token(
-            identity=user.id, additional_claims={"role": user.role.value}
+            identity=str(user.id), additional_claims={"role": user.role.value}
         )
 
         return {"user": user, "access_token": token, "token_type": "Bearer"}

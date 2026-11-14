@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from .config import CONFIGS
-from .extensions import db, migrate, jwt, api, bycrypt
+from .extensions import db, migrate, jwt, api, bcrypt
 from flask import jsonify
 from .errors import AppError
 from .routes.auth import blp as auth_blp
@@ -19,7 +19,7 @@ def create_app(config_class=None):
     migrate.init_app(app, db)
     jwt.init_app(app)
     api.init_app(app)
-    bycrypt.init_app(app)
+    bcrypt.init_app(app)
 
     @app.errorhandler(AppError)
     def handle_app_error(e):
@@ -32,7 +32,13 @@ def create_app(config_class=None):
         )
         field, errors = next(iter(message.items()), ("request", ["Invalid input."]))
 
-        return jsonify(error=f"{field}: {errors[0]}", code="VALIDATION_FAILED")
+        return (
+            jsonify(
+                error=f"{field}: {errors[0]}",
+                code="VALIDATION_FAILED",
+            ),
+            422,
+        )
 
     @jwt.unauthorized_loader
     def missing_token(reason):
@@ -57,6 +63,12 @@ def create_app(config_class=None):
             ),
             401,
         )
+
+    @jwt.user_lookup_loader
+    def load_user(_jwt_header, jwt_payload):
+        from .models import User
+
+        return db.session.get(User, int(jwt_payload["sub"]))
 
     from . import models
     from .health import blp as health_blp

@@ -1,7 +1,7 @@
 class AppError(Exception):
     # defaults
     status_code = 400
-    code = "BAD REQUEST"
+    code = "BAD_REQUEST"
 
     def __init__(self, message):
         super().__init__(message)

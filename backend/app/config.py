@@ -10,12 +10,33 @@ class Config:
     # For flask smorest to read and add in docs
     API_TITLE = "Bread And Basket API"
     API_VERSION = "v1"
+    API_SPEC_OPTIONS = {
+        "components": {
+            "securitySchemes": {
+                "bearerAuth": {
+                    "type": "http",
+                    "scheme": "bearer",
+                    "bearerFormat": "JWT",
+                }
+            }
+        }
+    }
     OPENAPI_VERSION = "3.0.3"
     OPENAPI_URL_PREFIX = "/"
     OPENAPI_SWAGGER_UI_PATH = "/docs"
     OPENAPI_SWAGGER_UI_URL = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
-
     REQUIRED = ["SQLALCHEMY_DATABASE_URI"]
+    API_SPEC_OPTIONS = {
+        "components": {
+            "securitySchemes": {
+                "bearerAuth": {
+                    "type": "http",
+                    "scheme": "bearer",
+                    "bearerFormat": "JWT",
+                }
+            }
+        }
+    }
 
     @classmethod
     def validate(cls):
