@@ -3,29 +3,73 @@ import { AuthContext } from "./authContext";
 import * as authApi from "../../api/auth";
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      localStorage.removeItem("user");
+      return null;
+    }
+  });
+
+  const [token, setToken] = useState(() => {
+    return localStorage.getItem("token") || null;
+  });
+
+  const [loading, setLoading] = useState(false);
 
   function saveSession(data) {
     setUser(data.user);
     setToken(data.access_token);
+
+    localStorage.setItem("user", JSON.stringify(data.user));
+    localStorage.setItem("token", data.access_token);
+
     return data.user;
   }
 
   async function login(credentials) {
-    return saveSession(await authApi.login(credentials));
+    setLoading(true);
+
+    try {
+      return saveSession(await authApi.login(credentials));
+    } finally {
+      setLoading(false);
+    }
   }
 
-  // role is "consumer" or "seller", the same role names the API uses.
   async function register(role, details) {
-    const call =
-      role === "seller" ? authApi.registerWholesaler : authApi.registerConsumer;
-    return saveSession(await call(details));
+    setLoading(true);
+
+    try {
+      const call =
+        role === "seller"
+          ? authApi.registerWholesaler
+          : authApi.registerConsumer;
+
+      return saveSession(await call(details));
+    } finally {
+      setLoading(false);
+    }
   }
 
-  return (
-    <AuthContext.Provider value={{ user, token, login, register }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  function logout() {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+  }
+
+  const value = {
+    user,
+    token,
+    loading,
+    isAuthenticated: Boolean(user && token),
+    login,
+    register,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
