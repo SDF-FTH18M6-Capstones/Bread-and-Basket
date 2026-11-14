@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4010/api";
 
 export class ApiError extends Error {
   constructor(message, status = 0, fieldErrors = {}, code = null) {
@@ -18,12 +18,13 @@ export async function request(path, { method = "GET", body } = {}) {
       method,
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new ApiError(
-      "Cannot reach the server. Check your connection and try again.",
+      "Cannot reach the server. Check your connection and try again."
     );
   }
 
@@ -32,13 +33,14 @@ export async function request(path, { method = "GET", body } = {}) {
   try {
     data = await response.json();
   } catch {
-    // The response had no JSON body.
+    data = null;
   }
 
   if (!response.ok) {
-    const message = data?.error || "Something went wrong. Please try again.";
+    const message =
+      data?.error || data?.message || "Something went wrong. Please try again.";
 
-    throw new ApiError(message, response.status, {}, data?.code || null);
+    throw new ApiError(message, response.status, data?.fieldErrors || {}, data?.code || null);
   }
 
   return data;
@@ -47,8 +49,9 @@ export async function request(path, { method = "GET", body } = {}) {
 export function assetUrl(path) {
   if (!path) return null;
 
-if (path.startsWith("http://") || path.startsWith("https://")) {
-  return path;
-}
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+
   return new URL(path, new URL(BASE_URL).origin).toString();
 }
