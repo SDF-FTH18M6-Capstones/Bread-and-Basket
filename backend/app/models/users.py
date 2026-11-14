@@ -3,7 +3,7 @@ from sqlalchemy import String, text, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from .enums import pg_enum, UserRole
-from ..extensions import bycrypt
+from ..extensions import bcrypt
 
 
 class User(BaseModel):
@@ -25,9 +25,7 @@ class User(BaseModel):
     orders: Mapped[list["Order"]] = relationship(back_populates="consumer")
 
     def set_password(self, raw_password: str):
-        self.password_hash = bycrypt.generate_password_hash(raw_password).decode(
-            "utf-8"
-        )
+        self.password_hash = bcrypt.generate_password_hash(raw_password).decode("utf-8")
 
     def check_password(self, raw_password: str) -> bool:
-        return bycrypt.check_password_hash(self.password_hash, raw_password)
+        return bcrypt.check_password_hash(self.password_hash, raw_password)

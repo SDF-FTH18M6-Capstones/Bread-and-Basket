@@ -8,7 +8,8 @@ from ..schemas.auth import (
     UserSchema,
 )
 from ..services.auth_service import AuthService
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, current_user
+from ..auth.decorators import role_required
 
 blp = Blueprint("auth", __name__, url_prefix="/api", description="Accounts")
 
@@ -44,5 +45,6 @@ class Me(MethodView):
 
     @jwt_required()
     @blp.response(200, UserSchema)
+    @blp.doc(security=[{"bearerAuth": []}])
     def get(self):
         return current_user
