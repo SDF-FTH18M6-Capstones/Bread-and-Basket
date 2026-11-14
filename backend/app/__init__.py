@@ -4,6 +4,7 @@ from .config import CONFIGS
 from .extensions import db, migrate, jwt, api, bycrypt
 from flask import jsonify
 from .errors import AppError
+from .routes.auth import blp as auth_blp
 
 
 def create_app(config_class=None):
@@ -61,5 +62,6 @@ def create_app(config_class=None):
     from .health import blp as health_blp
 
     api.register_blueprint(health_blp)
+    api.register_blueprint(auth_blp)
 
     return app
