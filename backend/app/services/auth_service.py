@@ -6,7 +6,6 @@ from ..models.enums import UserRole
 
 
 class AuthService:
-
     def register_consumer(self, data):
         if db.session.scalar(db.select(User).filter_by(email=data["email"])):
             raise ConflictError("An account with this email exists")

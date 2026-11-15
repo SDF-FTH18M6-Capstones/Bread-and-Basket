@@ -60,3 +60,11 @@ class Order(BaseModel):
         back_populates="order", order_by="OrderStatusHistory.created_at"
     )
     refund: Mapped["Refund | None"] = relationship(back_populates="order")
+
+    # calculated properties
+    @property
+    def is_live(self):
+        if self.status == OrderStatus.CANCELLED or self.status == OrderStatus.REFUNDED:
+            return False
+
+        return True

@@ -5,6 +5,8 @@ from .extensions import db, migrate, jwt, api, bcrypt
 from flask import jsonify
 from .errors import AppError
 from .routes.auth import blp as auth_blp
+from .routes.campaign import blp as campaign_blp
+from .routes.location import blp as location_blp
 
 
 def create_app(config_class=None):
@@ -27,11 +29,11 @@ def create_app(config_class=None):
 
     @app.errorhandler(422)
     def handle_validation_error(e):
-        message = (
-            e.data.get("messages", {}).get("json", {}) if hasattr(e, "data") else {}
+        messages = e.data.get("messages", {}) if hasattr(e, "data") else {}
+        location_errors = next(iter(messages.values()), {})
+        field, errors = next(
+            iter(location_errors.items()), ("request", ["Invalid input."])
         )
-        field, errors = next(iter(message.items()), ("request", ["Invalid input."]))
-
         return (
             jsonify(
                 error=f"{field}: {errors[0]}",
@@ -75,5 +77,7 @@ def create_app(config_class=None):
 
     api.register_blueprint(health_blp)
     api.register_blueprint(auth_blp)
+    api.register_blueprint(campaign_blp)
+    api.register_blueprint(location_blp)
 
     return app

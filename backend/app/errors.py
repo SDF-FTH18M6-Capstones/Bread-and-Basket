@@ -22,3 +22,8 @@ class ForbiddenError(AppError):
 class ConflictError(AppError):
     status_code = 409
     code = "CONFLICT"
+
+
+class NotFound(AppError):
+    status_code = 404
+    code = "NOT_FOUND"
