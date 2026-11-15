@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 
 import LandingPage from "../features/landing/LandingPage";
 import ShopHome from "../features/shop/ShopHome";
+import CampaignDetailPage from "../features/shop/CampaignDetailPage";
 import SellerHome from "../features/seller/SellerHome";
 import AdminHome from "../features/admin/AdminHome";
 import OrdersPage from "../features/orders/ordersPage";
@@ -18,6 +19,7 @@ export default function AppRoutes() {
       {/* Consumer routes */}
       <Route element={<ProtectedRoute allowedRoles={["consumer"]} />}>
         <Route path="/shop" element={<ShopHome />} />
+        <Route path="/campaigns/:campaignId" element={<CampaignDetailPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/orders/:orderId" element={<OrderDetailPage />} />
       </Route>
