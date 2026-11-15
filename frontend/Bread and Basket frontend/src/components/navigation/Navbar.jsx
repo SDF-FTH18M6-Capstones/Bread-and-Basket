@@ -1,16 +1,25 @@
 import { useContext } from "react";
 import { NavLink, Link } from "react-router-dom";
 import { AuthContext } from "../../features/auth/authContext";
-import { getLinksForRole } from "./navConfig";
+import { getLinksForRole } from "../../lib/navConfig";
 import "./Navigation.css";
 
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext) ?? {};
   const links = getLinksForRole(user?.role);
 
+  const homeLink =
+    user?.role === "consumer"
+      ? "/shop"
+      : user?.role === "seller"
+        ? "/seller"
+        : user?.role === "admin"
+          ? "/admin"
+          : "/";
+
   return (
     <header className="navbar">
-      <Link to="/" className="navbar__brand">
+      <Link to={homeLink} className="navbar__brand">
         🍞 Bread &amp; Basket
       </Link>
 
@@ -20,7 +29,9 @@ export default function Navbar() {
             key={link.to}
             to={link.to}
             end={link.to === "/"}
-            className={({ isActive }) => `navbar__link${isActive ? " is-active" : ""}`}
+            className={({ isActive }) =>
+              `navbar__link${isActive ? " is-active" : ""}`
+            }
           >
             {link.label}
           </NavLink>

@@ -1,12 +1,7 @@
-// One place to define every role's bar.
-
 export const NAV_LINKS = {
-  guest: [
-    { to: "/", label: "Home", icon: "🏠" },
-  ],
   consumer: [
-    { to: "/", label: "Home", icon: "🏠" },
-    { to: "/shop", label: "Shop", icon: "🧺" },
+    { to: "/shop", label: "Shop", icon: "🏠" },
+    { to: "/browse", label: "Browse", icon: "🧺" },
     { to: "/orders", label: "Orders", icon: "📦" },
     { to: "/profile", label: "Profile", icon: "👤" },
   ],

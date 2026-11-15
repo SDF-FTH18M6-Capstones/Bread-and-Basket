@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { NavLink } from "react-router-dom";
 import { AuthContext } from "../../features/auth/authContext";
-import { getLinksForRole } from "./navConfig";
+import { getLinksForRole } from "../../lib/navConfig";
 import "./Navigation.css";
 
 // Mobile bottom tab bar. Hidden on desktop.

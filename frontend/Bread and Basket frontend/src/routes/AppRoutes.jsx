@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-
+import Layout from "../Layout";
 import LandingPage from "../features/landing/LandingPage";
 import ShopHome from "../features/shop/ShopHome";
 import SellerHome from "../features/seller/SellerHome";
@@ -15,7 +15,8 @@ export default function AppRoutes() {
       {/* Public route */}
       <Route path="/" element={<LandingPage />} />
 
-      {/* Consumer routes */}
+      <Route element={<Layout/>}>
+        {/* Consumer routes */}
       <Route element={<ProtectedRoute allowedRoles={["consumer"]} />}>
         <Route path="/shop" element={<ShopHome />} />
         <Route path="/orders" element={<OrdersPage />} />
@@ -30,6 +31,7 @@ export default function AppRoutes() {
       {/* Admin routes */}
       <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
         <Route path="/admin" element={<AdminHome />} />
+      </Route>
       </Route>
     </Routes>
   );

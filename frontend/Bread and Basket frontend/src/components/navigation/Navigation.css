@@ -12,12 +12,8 @@
   --nav-active: #c2410c;
 }
 
-.app-layout__content {
-  min-height: calc(100vh - var(--nav-height));
-  padding: var(--space-md);
-}
 
-/* ---------- Desktop top bar ---------- */
+/* desktop */
 .navbar {
   position: sticky;
   top: 0;
@@ -68,7 +64,7 @@
   cursor: pointer;
 }
 
-/* ---------- Mobile bottom tabs ---------- */
+/* mobile */
 .bottom-tabs { display: none; }
 
 @media (max-width: 768px) {
