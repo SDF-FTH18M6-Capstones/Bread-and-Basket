@@ -4,10 +4,18 @@ import { assetUrl } from "../../api/client";
 import { isEndingSoon, kes, timeLeft } from "../../lib/format";
 
 function stateOf(campaign) {
-  if (campaign.sold_out) return { text: "Sold out", tone: "grey" };
-  if (isEndingSoon(campaign.deadline))
+  if (campaign.sold_out) {
+    return { text: "Sold out", tone: "grey" };
+  }
+
+  if (isEndingSoon(campaign.deadline)) {
     return { text: "Ending soon", tone: "orange" };
-  if (campaign.min_reached) return { text: "Min reached", tone: "green" };
+  }
+
+  if (campaign.min_reached) {
+    return { text: "Min reached", tone: "green" };
+  }
+
   return {
     text: `Needs ${campaign.min_quantity - campaign.ordered_quantity} more`,
     tone: "orange",
@@ -20,8 +28,8 @@ export default function CampaignCard({ campaign }) {
   const imageSrc = assetUrl(product.image_url);
 
   return (
-    <article className="flex w-44 shrink-0 snap-start flex-col gap-1.5 rounded-[18px] bg-white p-2.5">
-      <div className="relative h-[130px] overflow-hidden rounded-[14px]">
+    <article className="flex h-full w-full min-w-0 flex-col gap-1.5 rounded-[18px] bg-white p-2.5">
+      <div className="relative h-[150px] overflow-hidden rounded-[14px]">
         {imageSrc ? (
           <img
             src={imageSrc}
@@ -36,6 +44,7 @@ export default function CampaignCard({ campaign }) {
             {product.name[0]}
           </div>
         )}
+
         <Badge tone={state.tone} className="absolute left-1.5 top-1.5">
           {state.text}
         </Badge>
@@ -49,7 +58,9 @@ export default function CampaignCard({ campaign }) {
           {kes(product.retail_price)}
         </span>
       </div>
+
       <h3 className="text-sm font-semibold leading-tight">{product.name}</h3>
+
       <p className="text-[13px] text-muted">
         {product.unit} · {timeLeft(campaign.deadline)}
       </p>
@@ -60,6 +71,7 @@ export default function CampaignCard({ campaign }) {
         max={campaign.max_quantity}
         label={`${campaign.ordered_quantity} of ${campaign.max_quantity} joined, minimum ${campaign.min_quantity}`}
       />
+
       <p className="text-[13px] tabular-nums text-muted">
         {campaign.ordered_quantity}/{campaign.max_quantity} joined
       </p>

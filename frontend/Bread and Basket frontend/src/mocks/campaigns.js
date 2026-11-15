@@ -161,10 +161,47 @@ function build(r) {
   };
 }
 
-// Like the real API: soonest deadline first.
-export async function listCampaigns() {
+export async function listCampaigns(filters = {}) {
   await wait();
-  return RAW.map(build).sort(
+
+  let campaigns = RAW.map(build).sort(
     (a, b) => new Date(a.deadline) - new Date(b.deadline),
   );
+
+  // Search campaign titles and product names.
+  if (filters.q?.trim()) {
+    const query = filters.q.trim().toLowerCase();
+
+    campaigns = campaigns.filter(
+      (campaign) =>
+        campaign.title.toLowerCase().includes(query) ||
+        campaign.product.name.toLowerCase().includes(query),
+    );
+  }
+
+  // Filter by product category.
+  if (filters.category) {
+    campaigns = campaigns.filter(
+      (campaign) => campaign.product.category === filters.category,
+    );
+  }
+
+  // Match the backend: campaigns closing within 48 hours.
+  if (filters.filter === "ending_soon") {
+    const now = Date.now();
+    const fortyEightHours = 48 * 60 * 60 * 1000;
+
+    campaigns = campaigns.filter((campaign) => {
+      const remaining = new Date(campaign.deadline).getTime() - now;
+
+      return remaining > 0 && remaining <= fortyEightHours;
+    });
+  }
+
+  // Campaigns that have not yet reached their minimum quantity.
+  if (filters.filter === "almost_unlocked") {
+    campaigns = campaigns.filter((campaign) => !campaign.min_reached);
+  }
+
+  return campaigns;
 }
