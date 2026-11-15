@@ -27,11 +27,11 @@ def create_app(config_class=None):
 
     @app.errorhandler(422)
     def handle_validation_error(e):
-        message = (
-            e.data.get("messages", {}).get("json", {}) if hasattr(e, "data") else {}
+        messages = e.data.get("messages", {}) if hasattr(e, "data") else {}
+        location_errors = next(iter(messages.values()), {})
+        field, errors = next(
+            iter(location_errors.items()), ("request", ["Invalid input."])
         )
-        field, errors = next(iter(message.items()), ("request", ["Invalid input."]))
-
         return (
             jsonify(
                 error=f"{field}: {errors[0]}",

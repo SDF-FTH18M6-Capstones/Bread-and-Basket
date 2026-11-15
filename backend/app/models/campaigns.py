@@ -2,8 +2,8 @@ from .base import BaseModel
 from decimal import Decimal
 from sqlalchemy import String, Numeric, CheckConstraint, func, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime
 from .enums import CampaignStatus, pg_enum
+from datetime import datetime, timezone
 
 
 class Campaign(BaseModel):
@@ -44,3 +44,56 @@ class Campaign(BaseModel):
 
     product: Mapped["Product"] = relationship(back_populates="campaigns")
     orders: Mapped[list["Order"]] = relationship(back_populates="campaign")
+
+    # calculated properties
+
+    @property
+    def active_orders(self) -> list:
+
+        return [order for order in self.orders if order.is_live]
+
+    @property
+    def ordered_quantity(self) -> int:
+        return sum(order.quantity for order in self.active_orders)
+
+    @property
+    def households(self) -> int:
+        return len({order.consumer_id for order in self.active_orders})
+
+    @property
+    def min_reached(self) -> bool:
+        return self.ordered_quantity >= self.min_quantity
+
+    @property
+    def sold_out(self) -> bool:
+        return self.ordered_quantity >= self.max_quantity
+
+    @property
+    def savings_per_unit(self) -> Decimal:
+        return self.product.retail_price - self.campaign_price
+
+    @property
+    def remaining_quantity(self) -> int:
+        return self.max_quantity - self.ordered_quantity
+
+    @property
+    def can_join(self) -> bool:
+        return (
+            self.status == CampaignStatus.ACTIVE
+            and self.deadline > datetime.now(timezone.utc)
+            and not self.sold_out
+        )
+
+    def quantity_held_by(self, user) -> int:
+        return sum(
+            order.quantity
+            for order in self.active_orders
+            if order.consumer_id == user.id
+        )
+
+    def max_orderable_for(self, user) -> int:
+        left_in_campaign = self.remaining_quantity
+        if self.max_per_user is None:
+            return max(0, left_in_campaign)
+        left_for_user = self.max_per_user - self.quantity_held_by(user)
+        return max(0, min(left_in_campaign, left_for_user))
