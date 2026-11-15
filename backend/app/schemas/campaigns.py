@@ -24,13 +24,6 @@ class CampaignQuerySchema(Schema):
     filter = fields.Str(validate=validate.OneOf(["ending_soon", "almost_unlocked"]))
 
 
-class LocationSchema(Schema):
-    id = fields.Int(dump_only=True)
-    name = fields.Str()
-    delivery_fee = fields.Int()
-    collection_point = fields.Str()
-
-
 class ProductSummarySchema(Schema):
     id = fields.Int(dump_only=True)
     name = fields.Str()
