@@ -23,3 +23,21 @@ export async function listCampaigns(filters = {}) {
 
   return USE_MOCKS ? mockCampaigns.listCampaigns(filters) : request(path);
 }
+
+export async function getCampaign(campaignId) {
+  if (USE_MOCKS) {
+    const campaigns = await mockCampaigns.listCampaigns();
+
+    const campaign = campaigns.find(
+      (item) => String(item.id) === String(campaignId),
+    );
+
+    if (!campaign) {
+      throw new Error("Campaign not found.");
+    }
+
+    return campaign;
+  }
+
+  return request(`/campaigns/${encodeURIComponent(campaignId)}`);
+}
