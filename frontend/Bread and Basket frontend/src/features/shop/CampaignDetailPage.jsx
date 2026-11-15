@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import { getCampaign } from "../../api/campaigns";
 import { request, assetUrl } from "../../api/client";
@@ -18,18 +18,6 @@ function formatDate(date) {
     hour: "numeric",
     minute: "2-digit",
   });
-}
-
-function campaignState(campaign) {
-  if (campaign.sold_out) {
-    return { text: "Sold out", tone: "grey" };
-  }
-
-  if (campaign.min_reached) {
-    return { text: "Minimum reached", tone: "green" };
-  }
-
-  return { text: "Building towards minimum", tone: "orange" };
 }
 
 function DetailLoading() {
@@ -56,7 +44,6 @@ function DetailLoading() {
 
 export default function CampaignDetailPage() {
   const { campaignId } = useParams();
-  const navigate = useNavigate();
 
   const [campaign, setCampaign] = useState(null);
   const [locations, setLocations] = useState([]);
@@ -127,16 +114,6 @@ export default function CampaignDetailPage() {
     return () => clearInterval(timer);
   }, []);
 
-  function handleOrderSuccess(order) {
-    setShowJoinModal(false);
-
-    if (order?.id) {
-      navigate(`/orders/${order.id}`);
-    } else {
-      navigate("/orders");
-    }
-  }
-
   if (status === "loading") {
     return <DetailLoading />;
   }
@@ -156,6 +133,7 @@ export default function CampaignDetailPage() {
           className="mt-6 rounded-[20px] bg-bad-soft p-6 text-sm text-bad"
         >
           <h1 className="font-semibold">Unable to load campaign</h1>
+
           <p className="mt-1">{error}</p>
 
           <button
@@ -172,7 +150,6 @@ export default function CampaignDetailPage() {
 
   const product = campaign.product;
   const imageSrc = assetUrl(product.image_url);
-  const state = campaignState(campaign);
 
   const ordered = campaign.ordered_quantity || 0;
   const minimum = campaign.min_quantity || 0;
@@ -208,11 +185,25 @@ export default function CampaignDetailPage() {
   const lowestDeliveryFee =
     deliveryFees.length > 0 ? Math.min(...deliveryFees) : null;
 
+  const personalMaximum =
+    campaign.max_orderable === null || campaign.max_orderable === undefined
+      ? null
+      : Number(campaign.max_orderable);
+
+  const minimumOrder = Number(campaign.min_order_quantity || 1);
+
+  const personalLimitReached = personalMaximum !== null && personalMaximum <= 0;
+
+  const insufficientPersonalLimit =
+    personalMaximum !== null && personalMaximum < minimumOrder;
+
   const canJoin =
     campaign.can_join !== false &&
     !campaign.sold_out &&
     campaign.status === "active" &&
-    !deadlinePassed;
+    !deadlinePassed &&
+    !personalLimitReached &&
+    !insufficientPersonalLimit;
 
   const source = product.source;
 
@@ -274,6 +265,7 @@ export default function CampaignDetailPage() {
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-[16px] bg-canvas p-3">
                 <p className="text-[13px] text-muted">Ordered</p>
+
                 <p className="mt-1 text-[22px] font-bold tabular-nums text-ink">
                   {ordered}
                 </p>
@@ -281,6 +273,7 @@ export default function CampaignDetailPage() {
 
               <div className="rounded-[16px] bg-canvas p-3">
                 <p className="text-[13px] text-muted">Still available</p>
+
                 <p className="mt-1 text-[22px] font-bold tabular-nums text-ink">
                   {remaining}
                 </p>
@@ -288,6 +281,7 @@ export default function CampaignDetailPage() {
 
               <div className="rounded-[16px] bg-canvas p-3">
                 <p className="text-[13px] text-muted">Households</p>
+
                 <p className="mt-1 text-[22px] font-bold tabular-nums text-ink">
                   {campaign.households ?? 0}
                 </p>
@@ -309,7 +303,10 @@ export default function CampaignDetailPage() {
               <p>
                 {minimumReached
                   ? `Minimum of ${minimum} reached. This campaign will go ahead.`
-                  : `Needs ${Math.max(0, minimum - ordered)} more. If it doesn't get there, everyone is refunded in full.`}
+                  : `Needs ${Math.max(
+                      0,
+                      minimum - ordered,
+                    )} more. If it doesn't get there, everyone is refunded in full.`}
               </p>
             </div>
           </div>
@@ -365,7 +362,7 @@ export default function CampaignDetailPage() {
             <div className="rounded-[16px] bg-canvas p-4 text-sm leading-[1.9] text-ink-2">
               <p>
                 <strong className="text-ink">
-                  Min {campaign.min_order_quantity ?? 1}
+                  Min {minimumOrder}
                   {" · "}
                   Max {campaign.max_per_user ?? "no limit"}
                 </strong>{" "}
@@ -386,6 +383,25 @@ export default function CampaignDetailPage() {
                 per order, or free collection
               </p>
             </div>
+
+            {personalLimitReached && (
+              <div
+                role="status"
+                className="rounded-xl bg-orange-soft p-3 text-sm font-medium text-orange-text"
+              >
+                You've reached your maximum order quantity for this campaign.
+              </div>
+            )}
+
+            {insufficientPersonalLimit && !personalLimitReached && (
+              <div
+                role="status"
+                className="rounded-xl bg-orange-soft p-3 text-sm font-medium text-orange-text"
+              >
+                You have only {personalMaximum} unit(s) remaining, which is
+                below the minimum order quantity.
+              </div>
+            )}
           </div>
 
           <div className="sticky bottom-4 z-10">
@@ -397,11 +413,16 @@ export default function CampaignDetailPage() {
             >
               {campaign.sold_out
                 ? "Sold out"
-                : deadlinePassed || campaign.status !== "active"
-                  ? "Campaign closed"
-                  : `Join campaign · from ${kes(
-                      campaign.campaign_price + (campaign.platform_charge || 0),
-                    )}`}
+                : personalLimitReached
+                  ? "Personal limit reached"
+                  : insufficientPersonalLimit
+                    ? "Below minimum quantity"
+                    : deadlinePassed || campaign.status !== "active"
+                      ? "Campaign closed"
+                      : `Join campaign · from ${kes(
+                          campaign.campaign_price +
+                            (campaign.platform_charge || 0),
+                        )}`}
             </button>
           </div>
         </aside>
@@ -412,7 +433,6 @@ export default function CampaignDetailPage() {
           campaign={campaign}
           locations={locations}
           onClose={() => setShowJoinModal(false)}
-          onSuccess={handleOrderSuccess}
         />
       )}
     </main>

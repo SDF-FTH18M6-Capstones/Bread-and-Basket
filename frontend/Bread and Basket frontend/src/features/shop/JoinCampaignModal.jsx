@@ -1,14 +1,17 @@
-import { useMemo, useState } from "react";
 
-import { request } from "../../api/client";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { request, assetUrl } from "../../api/client";
 import { kes } from "../../lib/format";
 
 export default function JoinCampaignModal({
   campaign,
   locations,
   onClose,
-  onSuccess,
 }) {
+  const navigate = useNavigate();
+
   const minimum = Number(campaign.min_order_quantity || 1);
 
   const maximum = Number(
@@ -18,11 +21,13 @@ export default function JoinCampaignModal({
   );
 
   const [quantity, setQuantity] = useState(Math.min(minimum, maximum));
-
   const [fulfilment, setFulfilment] = useState("delivery");
   const [locationId, setLocationId] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [phone, setPhone] = useState("");
+
+  const [paymentStage, setPaymentStage] = useState("checkout");
+  const [order, setOrder] = useState(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -39,6 +44,7 @@ export default function JoinCampaignModal({
 
   const platformFee = Number(campaign.platform_charge || 0);
   const campaignPrice = Number(campaign.campaign_price || 0);
+  const retailPrice = Number(campaign.product.retail_price || 0);
 
   const deliveryFee =
     fulfilment === "delivery" && selectedLocation
@@ -48,6 +54,25 @@ export default function JoinCampaignModal({
   const subtotal = quantity * (campaignPrice + platformFee);
   const total = subtotal + deliveryFee;
 
+  const retailTotal = quantity * retailPrice;
+  const savings = Math.max(0, retailTotal - total);
+
+  const productImage = assetUrl(campaign.product.image_url);
+
+  useEffect(() => {
+    if (paymentStage !== "waiting" || !order) return;
+
+    const timer = setTimeout(() => {
+      if (order.payment?.status === "successful") {
+        setPaymentStage("success");
+      } else {
+        setPaymentStage("payment_error");
+      }
+    }, 1800);
+
+    return () => clearTimeout(timer);
+  }, [paymentStage, order]);
+
   function updateQuantity(value) {
     const parsed = Number(value);
 
@@ -56,7 +81,7 @@ export default function JoinCampaignModal({
     setQuantity(Math.max(minimum, Math.min(maximum, parsed)));
   }
 
-  async function handleSubmit(event) {
+  function continueToPayment(event) {
     event.preventDefault();
 
     setError("");
@@ -82,6 +107,15 @@ export default function JoinCampaignModal({
       return;
     }
 
+    setPaymentStage("mpesa");
+  }
+
+  async function handlePayment(event) {
+    event.preventDefault();
+
+    setError("");
+    setFieldErrors({});
+
     if (!phone.trim()) {
       setError("Please enter your M-Pesa phone number.");
       return;
@@ -102,14 +136,17 @@ export default function JoinCampaignModal({
     try {
       setSubmitting(true);
 
-      const order = await request("/orders", {
+      const createdOrder = await request("/orders", {
         method: "POST",
         body: orderData,
       });
 
-      onSuccess(order);
+      setOrder(createdOrder);
+      setPaymentStage("waiting");
     } catch (err) {
-      setError(err.message || "Unable to create your order. Please try again.");
+      setError(
+        err.message || "Unable to process your order. Please try again.",
+      );
 
       setFieldErrors(err.fieldErrors || {});
     } finally {
@@ -125,6 +162,330 @@ export default function JoinCampaignModal({
     return value || "";
   }
 
+  const overlayClass =
+    "fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 max-sm:items-end max-sm:p-0";
+
+  const cardClass =
+    "my-auto w-full max-w-[480px] max-h-[90vh] overflow-y-auto rounded-[28px] bg-white p-[26px] shadow-2xl max-sm:mb-0 max-sm:max-h-[92vh] max-sm:rounded-b-none max-sm:rounded-t-[26px] max-sm:px-5 max-sm:pb-7";
+
+  function ProductSummary({ amount, orderQuantity }) {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl bg-canvas p-3">
+        <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-white">
+          {productImage ? (
+            <img
+              src={productImage}
+              alt={campaign.product.name}
+              className="size-full object-contain"
+            />
+          ) : (
+            <span className="text-2xl font-bold text-forest/30">
+              {campaign.product.name?.[0] || "B"}
+            </span>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-muted">
+            {campaign.title} · {orderQuantity} × {campaign.product.unit}
+          </p>
+
+          <p className="mt-1 text-[26px] font-bold leading-tight tabular-nums text-forest">
+            {kes(amount)}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // WAITING SCREEN
+  if (paymentStage === "waiting") {
+    return (
+      <div className={overlayClass}>
+        <section role="dialog" aria-modal="true" className={cardClass}>
+          <h2 className="mb-5 text-[22px] font-bold text-ink">
+            Pay with M-Pesa
+          </h2>
+
+          <div className="space-y-5">
+            <ProductSummary
+              amount={order?.total_amount ?? total}
+              orderQuantity={order?.quantity ?? quantity}
+            />
+
+            <div>
+              <label className="block text-sm font-semibold text-ink">
+                M-Pesa phone number
+              </label>
+
+              <input
+                type="tel"
+                value={phone}
+                disabled
+                className="mt-2 min-h-[52px] w-full rounded-xl border border-line bg-canvas px-4 text-lg tracking-wide text-ink"
+              />
+            </div>
+
+            <div className="flex flex-col items-center rounded-2xl bg-canvas px-5 py-7 text-center">
+              <div className="size-11 animate-spin rounded-full border-4 border-forest/20 border-t-forest" />
+
+              <h3 className="mt-5 text-lg font-bold text-ink">
+                Check your phone
+              </h3>
+
+              <p className="mt-2 text-sm text-muted">
+                Waiting for your M-Pesa PIN…
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  // SUCCESS SCREEN
+  if (paymentStage === "success") {
+    const payment = order?.payment || {};
+    const orderNumber = order?.order_number || order?.id || "Confirmed";
+    const orderTotal = order?.total_amount ?? payment.amount ?? total;
+
+    const campaignOrdered =
+      Number(campaign.ordered_quantity || 0) +
+      Number(order?.quantity || quantity);
+
+    const locationName = selectedLocation?.name || "Your selected location";
+
+    const fulfilmentDescription =
+      order?.fulfilment === "delivery"
+        ? order?.delivery_address || locationName
+        : locationName;
+
+    return (
+      <div className={overlayClass}>
+        <section
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="payment-success-title"
+          className={cardClass}
+        >
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex size-[84px] items-center justify-center rounded-full bg-lime">
+              <svg
+                viewBox="0 0 48 48"
+                className="size-11"
+                fill="none"
+                stroke="#133D27"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M10 25L20 35L39 14" />
+              </svg>
+            </div>
+
+            <h2
+              id="payment-success-title"
+              className="text-[26px] font-bold text-ink"
+            >
+              Payment received
+            </h2>
+
+            <p className="text-sm leading-relaxed text-ink-2">
+              Order <strong>#{orderNumber}</strong> · {kes(orderTotal)} · Ref{" "}
+              <strong>{payment.reference || "—"}</strong>
+            </p>
+          </div>
+
+          <div className="mt-6 w-full space-y-3 rounded-2xl bg-canvas p-4 text-sm tabular-nums">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted">Campaign</span>
+
+              <span className="font-semibold text-ink">
+                {campaignOrdered} / {campaign.max_quantity}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted">
+                Free cancellation until
+              </span>
+
+              <span className="text-right font-semibold text-ink">
+                {campaign.cancellation_cutoff
+                  ? new Date(campaign.cancellation_cutoff).toLocaleString(
+                      "en-KE",
+                      {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      },
+                    )
+                  : "Not specified"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted">
+                {order?.fulfilment === "delivery"
+                  ? "Delivery to"
+                  : "Collect at"}
+              </span>
+
+              <span className="text-right font-semibold text-ink">
+                {fulfilmentDescription}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-5 flex gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/orders")}
+              className="min-h-[48px] flex-1 rounded-full bg-forest px-3 text-sm font-semibold text-white transition hover:brightness-110"
+            >
+              View my orders
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/shop")}
+              className="min-h-[48px] flex-1 rounded-full border border-line px-3 text-sm font-semibold text-ink transition hover:bg-canvas"
+            >
+              Keep browsing
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  // PAYMENT ERROR SCREEN
+  if (paymentStage === "payment_error") {
+    return (
+      <div className={overlayClass}>
+        <section role="dialog" aria-modal="true" className={cardClass}>
+          <div className="text-center">
+            <div className="mx-auto grid size-[72px] place-items-center rounded-full bg-bad-soft text-3xl font-bold text-bad">
+              !
+            </div>
+
+            <h2 className="mt-5 text-xl font-bold text-ink">
+              Payment not confirmed
+            </h2>
+
+            <p className="mt-2 text-sm text-muted">
+              Your payment could not be confirmed. Check your orders before
+              trying again.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => navigate("/orders")}
+              className="mt-6 min-h-[50px] w-full rounded-full bg-forest font-bold text-white"
+            >
+              View my orders
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  // M-PESA SCREEN
+  if (paymentStage === "mpesa") {
+    return (
+      <div className={overlayClass}>
+        <section
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mpesa-title"
+          className={cardClass}
+        >
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setError("");
+                setFieldErrors({});
+                setPaymentStage("checkout");
+              }}
+              className="grid size-9 place-items-center rounded-full bg-canvas text-xl text-ink-2 transition hover:bg-line"
+              aria-label="Back to checkout"
+            >
+              ←
+            </button>
+
+            <h2
+              id="mpesa-title"
+              className="flex-1 text-center text-[22px] font-bold text-ink"
+            >
+              Pay with M-Pesa
+            </h2>
+
+            <div className="size-9" />
+          </div>
+
+          <form onSubmit={handlePayment} className="space-y-4">
+            <ProductSummary amount={total} orderQuantity={quantity} />
+
+            <label
+              htmlFor="mpesa-phone"
+              className="block text-sm font-semibold text-ink"
+            >
+              M-Pesa phone number
+
+              <input
+                id="mpesa-phone"
+                type="tel"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                disabled={submitting}
+                placeholder="0712 345 678"
+                className="mt-2 min-h-[52px] w-full rounded-xl border border-line bg-white px-4 text-lg tracking-wide outline-none transition focus:border-forest"
+              />
+
+              {getFieldError("phone") && (
+                <span className="mt-1 block text-sm font-normal text-bad">
+                  {getFieldError("phone")}
+                </span>
+              )}
+            </label>
+
+            {error && (
+              <div
+                role="alert"
+                className="rounded-xl bg-bad-soft p-3 text-sm text-bad"
+              >
+                {error}
+              </div>
+            )}
+
+            {Object.entries(fieldErrors)
+              .filter(([field]) => field !== "phone")
+              .map(([field, message]) => (
+                <p key={field} className="text-sm text-bad">
+                  {field}:{" "}
+                  {Array.isArray(message) ? message.join(", ") : message}
+                </p>
+              ))}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="min-h-[52px] w-full rounded-full bg-lime px-5 font-bold text-forest transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {submitting ? "Processing..." : "Send payment prompt"}
+            </button>
+          </form>
+        </section>
+      </div>
+    );
+  }
+
+  // JOIN CAMPAIGN / QUANTITY SELECTION
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-3 sm:p-5"
@@ -149,22 +510,22 @@ export default function JoinCampaignModal({
               Join campaign
             </h2>
 
-            <p className="mt-1 text-sm text-muted">{campaign.product.name}</p>
+            <p className="mt-1 text-sm text-muted">
+              {campaign.product.name}
+            </p>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            disabled={submitting}
             aria-label="Close"
-            className="grid size-9 shrink-0 place-items-center rounded-full bg-canvas text-xl text-ink-2 hover:bg-line disabled:opacity-50"
+            className="grid size-9 shrink-0 place-items-center rounded-full bg-canvas text-xl text-ink-2 hover:bg-line"
           >
             ×
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-          {/* Quantity */}
+        <form onSubmit={continueToPayment} className="mt-6 space-y-5">
           <div>
             <label
               htmlFor="order-quantity"
@@ -177,7 +538,7 @@ export default function JoinCampaignModal({
               <button
                 type="button"
                 onClick={() => updateQuantity(quantity - 1)}
-                disabled={quantity <= minimum || submitting}
+                disabled={quantity <= minimum}
                 className="grid size-11 place-items-center rounded-full bg-canvas text-xl font-bold text-forest disabled:opacity-40"
               >
                 −
@@ -190,14 +551,14 @@ export default function JoinCampaignModal({
                 max={maximum}
                 value={quantity}
                 onChange={(event) => updateQuantity(event.target.value)}
-                disabled={submitting || maximum < minimum}
+                disabled={maximum < minimum}
                 className="h-11 w-24 rounded-xl border border-line text-center font-bold text-ink outline-none focus:border-forest"
               />
 
               <button
                 type="button"
                 onClick={() => updateQuantity(quantity + 1)}
-                disabled={quantity >= maximum || submitting}
+                disabled={quantity >= maximum}
                 className="grid size-11 place-items-center rounded-full bg-canvas text-xl font-bold text-forest disabled:opacity-40"
               >
                 +
@@ -209,7 +570,6 @@ export default function JoinCampaignModal({
             </div>
           </div>
 
-          {/* Fulfilment */}
           <div>
             <p className="mb-2 text-sm font-semibold text-ink">
               How would you like to receive your order?
@@ -219,7 +579,6 @@ export default function JoinCampaignModal({
               <button
                 type="button"
                 onClick={() => setFulfilment("delivery")}
-                disabled={submitting}
                 className={`rounded-xl border p-3 text-sm font-semibold transition ${
                   fulfilment === "delivery"
                     ? "border-forest bg-lime-soft text-forest"
@@ -232,7 +591,6 @@ export default function JoinCampaignModal({
               <button
                 type="button"
                 onClick={() => setFulfilment("collection")}
-                disabled={submitting}
                 className={`rounded-xl border p-3 text-sm font-semibold transition ${
                   fulfilment === "collection"
                     ? "border-forest bg-lime-soft text-forest"
@@ -244,7 +602,6 @@ export default function JoinCampaignModal({
             </div>
           </div>
 
-          {/* Location */}
           <div>
             <label
               htmlFor="order-location"
@@ -259,7 +616,6 @@ export default function JoinCampaignModal({
               id="order-location"
               value={locationId}
               onChange={(event) => setLocationId(event.target.value)}
-              disabled={submitting}
               className="h-12 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none focus:border-forest"
             >
               <option value="">Choose a location</option>
@@ -278,7 +634,6 @@ export default function JoinCampaignModal({
             )}
           </div>
 
-          {/* Delivery address */}
           {fulfilment === "delivery" && (
             <div>
               <label
@@ -293,42 +648,23 @@ export default function JoinCampaignModal({
                 rows={2}
                 value={deliveryAddress}
                 onChange={(event) => setDeliveryAddress(event.target.value)}
-                disabled={submitting}
                 placeholder="Enter your estate, street, building or other delivery details"
                 className="w-full rounded-xl border border-line p-3 text-sm outline-none focus:border-forest"
               />
             </div>
           )}
 
-          {/* M-Pesa phone */}
-          <div>
-            <label
-              htmlFor="mpesa-phone"
-              className="mb-2 block text-sm font-semibold text-ink"
-            >
-              M-Pesa phone number
-            </label>
-
-            <input
-              id="mpesa-phone"
-              type="tel"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              disabled={submitting}
-              placeholder="e.g. 07XXXXXXXX"
-              className="h-12 w-full rounded-xl border border-line px-3 text-sm outline-none focus:border-forest"
-            />
-          </div>
-
-          {/* Price breakdown */}
           <div className="rounded-[16px] bg-canvas p-4">
-            <h3 className="mb-3 font-bold text-ink">Price breakdown</h3>
+            <h3 className="mb-3 font-bold text-ink">
+              Price breakdown
+            </h3>
 
             <div className="space-y-2 text-sm text-ink-2">
               <div className="flex justify-between gap-3">
                 <span>
                   Campaign price ({quantity} × {kes(campaignPrice)})
                 </span>
+
                 <span>{kes(quantity * campaignPrice)}</span>
               </div>
 
@@ -336,6 +672,7 @@ export default function JoinCampaignModal({
                 <span>
                   Platform fee ({quantity} × {kes(platformFee)})
                 </span>
+
                 <span>{kes(quantity * platformFee)}</span>
               </div>
 
@@ -345,6 +682,7 @@ export default function JoinCampaignModal({
                     ? "Delivery fee"
                     : "Collection fee"}
                 </span>
+
                 <span>{kes(deliveryFee)}</span>
               </div>
 
@@ -352,10 +690,18 @@ export default function JoinCampaignModal({
                 <span>Total</span>
                 <span>{kes(total)}</span>
               </div>
+
+              <p
+                className={`pt-1 text-xs ${
+                  savings > 0 ? "font-medium text-green-700" : "text-muted"
+                }`}
+              >
+                You'd pay {kes(retailTotal)} at retail
+                {savings > 0 ? ` · you save ${kes(savings)}` : ""}
+              </p>
             </div>
           </div>
 
-          {/* Errors */}
           {error && (
             <div
               role="alert"
@@ -365,26 +711,13 @@ export default function JoinCampaignModal({
             </div>
           )}
 
-          {Object.entries(fieldErrors).map(([field, message]) => (
-            <p key={field} className="text-sm text-bad">
-              {field}: {Array.isArray(message) ? message.join(", ") : message}
-            </p>
-          ))}
-
-          {/* Submit */}
           <button
             type="submit"
-            disabled={
-              submitting || maximum < minimum || activeLocations.length === 0
-            }
+            disabled={maximum < minimum || activeLocations.length === 0}
             className="min-h-[52px] w-full rounded-full bg-lime px-5 font-bold text-forest transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {submitting ? "Placing order..." : `Continue · ${kes(total)}`}
+            Continue · {kes(total)}
           </button>
-
-          <p className="text-center text-xs text-muted">
-            Your order will be submitted for M-Pesa payment.
-          </p>
         </form>
       </section>
     </div>
