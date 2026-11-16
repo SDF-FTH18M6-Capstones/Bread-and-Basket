@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
 import { AuthContext } from "./authContext";
 import * as authApi from "../../api/auth";
+import { useNavigate } from "react-router-dom";
 
 export function AuthProvider({ children }) {
+  const navigate = useNavigate();
+
   const [user, setUser] = useState(() => {
     try {
       const savedUser = localStorage.getItem("user");
@@ -77,6 +80,8 @@ export function AuthProvider({ children }) {
 
     localStorage.removeItem("user");
     localStorage.removeItem("token");
+
+    navigate("/", { replace: true });
   }
 
   const value = {

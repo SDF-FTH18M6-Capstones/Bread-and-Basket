@@ -3,9 +3,11 @@ class AppError(Exception):
     status_code = 400
     code = "BAD_REQUEST"
 
-    def __init__(self, message):
+    def __init__(self, message, code=None):
         super().__init__(message)
         self.message = message
+        if code:
+            self.code = code
 
 
 class InvalidCredentials(AppError):
@@ -27,3 +29,7 @@ class ConflictError(AppError):
 class NotFound(AppError):
     status_code = 404
     code = "NOT_FOUND"
+
+
+class BusinessRuleError(AppError):
+    status_code = 400

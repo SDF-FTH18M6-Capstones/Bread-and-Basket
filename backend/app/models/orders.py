@@ -1,9 +1,10 @@
 from .base import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from .enums import OrderStatus, FulfilmentType, pg_enum
 from sqlalchemy import Numeric, DateTime, String, func, CheckConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from .enums import OrderStatus
 
 
 class Order(BaseModel):
@@ -64,7 +65,15 @@ class Order(BaseModel):
     # calculated properties
     @property
     def is_live(self):
-        if self.status == OrderStatus.CANCELLED or self.status == OrderStatus.REFUNDED:
-            return False
+        return self.status not in (OrderStatus.CANCELLED, OrderStatus.REFUNDED)
 
-        return True
+    @property
+    def cancellation_cutoff(self):
+        return self.campaign.cancellation_cutoff
+
+    @property
+    def can_cancel(self) -> bool:
+        return (
+            self.status in (OrderStatus.PAID, OrderStatus.CONFIRMED)
+            and datetime.now(timezone.utc) <= self.cancellation_cutoff
+        )
