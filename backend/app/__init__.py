@@ -1,12 +1,13 @@
 import os
 from flask import Flask
 from .config import CONFIGS
-from .extensions import db, migrate, jwt, api, bcrypt
+from .extensions import db, migrate, jwt, api, bcrypt, cors
 from flask import jsonify
 from .errors import AppError
 from .routes.auth import blp as auth_blp
 from .routes.campaign import blp as campaign_blp
 from .routes.location import blp as location_blp
+from .routes.order import blp as order_blp
 
 
 def create_app(config_class=None):
@@ -22,6 +23,7 @@ def create_app(config_class=None):
     jwt.init_app(app)
     api.init_app(app)
     bcrypt.init_app(app)
+    cors.init_app(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
 
     @app.errorhandler(AppError)
     def handle_app_error(e):
@@ -79,5 +81,6 @@ def create_app(config_class=None):
     api.register_blueprint(auth_blp)
     api.register_blueprint(campaign_blp)
     api.register_blueprint(location_blp)
+    api.register_blueprint(order_blp)
 
     return app
