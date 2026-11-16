@@ -6,7 +6,8 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=12)
-    CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173".split(","))
+
+    CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",")
 
     # For flask smorest to read and add in docs
     API_TITLE = "Bread And Basket API"
