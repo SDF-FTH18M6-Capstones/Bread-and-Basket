@@ -1,0 +1,264 @@
+/* General styling */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.bb {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: #F4F5EF;
+  color: #183D2D;
+  min-height: 100vh;
+}
+
+.bb-wrap {
+  width: 90%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Hero section */
+.bb-hero {
+  background-color: #10432F;
+  color: white;
+  padding: 30px 0 100px;
+  border-radius: 0 0 25px 25px;
+}
+
+.bb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 85px;
+}
+
+.bb-logo {
+  font-size: 25px;
+  font-weight: bold;
+  color: white;
+  text-decoration: none;
+}
+
+.bb-header nav {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+}
+
+.bb-link {
+  color: #10432F;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.bb-header .bb-link {
+  color: white;
+}
+
+/* Buttons */
+.bb-btn {
+  display: inline-block;
+  padding: 12px 24px;
+  border-radius: 25px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.bb-primary {
+  background-color: #B5E878;
+  color: #10432F;
+}
+
+.bb-primary:hover {
+  background-color: #9DD45C;
+}
+
+/* Hero content */
+.bb-hero h1 {
+  font-size: 46px;
+  line-height: 1.2;
+  max-width: 750px;
+  margin-bottom: 20px;
+  color: white;
+}
+
+.bb-hero p {
+  font-size: 17px;
+  line-height: 1.7;
+  max-width: 650px;
+  color: #E1EDE3;
+  margin-bottom: 30px;
+}
+
+/* Campaign section */
+.bb-section {
+  padding-top: 65px;
+  padding-bottom: 80px;
+}
+
+.bb-section h2 {
+  font-size: 30px;
+  color: #10432F;
+  margin-bottom: 12px;
+}
+
+.bb-sub {
+  color: #68776B;
+  font-size: 15px;
+  margin-bottom: 30px;
+}
+
+/* Campaign cards */
+.bb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.bb-card {
+  background-color: white;
+  padding: 25px;
+  border-radius: 12px;
+  border: 1px solid #E8EAE2;
+  box-shadow: 0 3px 10px rgba(16, 67, 47, 0.05);
+  transition: 0.3s;
+}
+
+.bb-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 15px rgba(16, 67, 47, 0.1);
+}
+
+.bb-card h3 {
+  font-size: 20px;
+  color: #10432F;
+  margin-bottom: 15px;
+}
+
+.bb-price {
+  font-size: 22px;
+  font-weight: bold;
+  color: #10432F;
+  margin-bottom: 20px;
+}
+
+/* Progress bar */
+.bb-bar {
+  width: 100%;
+  height: 9px;
+  background-color: #E8EDE3;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.bb-bar i {
+  display: block;
+  height: 100%;
+  background-color: #B5E878;
+  border-radius: 10px;
+  transition: width 0.3s;
+}
+
+/* Campaign information */
+.bb-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: #68776B;
+  margin-bottom: 22px;
+}
+
+/* Campaign buttons */
+.bb-card .bb-btn {
+  display: block;
+  text-align: center;
+  width: 100%;
+}
+
+/* Loading and error messages */
+.bb-state {
+  padding: 25px;
+  background-color: white;
+  border-radius: 10px;
+  color: #10432F;
+  text-align: center;
+}
+
+/* Closing section */
+.bb-closing {
+  background-color: #10432F;
+  color: white;
+  padding: 65px 0;
+  text-align: center;
+  border-radius: 15px 15px 0 0;
+}
+
+.bb-closing h2 {
+  font-size: 30px;
+  margin-bottom: 25px;
+  color: white;
+}
+
+.bb-closing .bb-link {
+  color: white;
+  margin-left: 15px;
+}
+
+.bb-closing .bb-link:hover {
+  color: #B5E878;
+}
+
+/* Tablet screens */
+@media (max-width: 768px) {
+  .bb-hero {
+    padding-bottom: 70px;
+  }
+
+  .bb-header {
+    margin-bottom: 60px;
+  }
+
+  .bb-hero h1 {
+    font-size: 36px;
+  }
+
+  .bb-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile screens */
+@media (max-width: 500px) {
+  .bb-wrap {
+    width: 92%;
+  }
+
+  .bb-header {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .bb-hero h1 {
+    font-size: 30px;
+  }
+
+  .bb-hero p {
+    font-size: 15px;
+  }
+
+  .bb-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bb-section h2 {
+    font-size: 25px;
+  }
+
+  .bb-meta {
+    font-size: 12px;
+  }
+}

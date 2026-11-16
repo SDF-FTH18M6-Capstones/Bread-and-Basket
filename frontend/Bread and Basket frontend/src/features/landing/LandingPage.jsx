@@ -1,44 +1,151 @@
-import { useState } from "react";
-import AuthModal from "../auth/AuthModal";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import "./LandingPage.css";
 
-export default function LandingPage() {
-  const [tab, setTab] = useState(null); // null = pop-up closed, otherwise "login" or "register"
+function CampaignCard({ campaign }) {
+  const title = campaign.title || campaign.name;
+  const price = campaign.price || 0;
+  const current = campaign.current_quantity || campaign.current || 0;
+  const target = campaign.target_quantity || campaign.target || 0;
+
+  let progress = 0;
+
+  if (target > 0) {
+    progress = (current / target) * 100;
+  }
+
+  if (progress > 100) {
+    progress = 100;
+  }
 
   return (
-    <>
-      <header className="bg-forest py-3.5 text-white">
-        <div className="mx-auto flex max-w[1240px] items-center justify-between px-4">
-          <span className="text-lg font-extrabold">Bread &amp; Basket</span>
-          <nav className="flex gap-3">
-            <button
-              onClick={() => setTab("login")}
-              className="cursor-pointer rounded-full border-[1.5px] border-lime bg-transparent px-5 py-2.5 font-bold text-lime"
-            >
-              Log in
-            </button>
-            <button
-              onClick={() => setTab("register")}
-              className="cursor-pointer rounded-full bg-lime px-5 py-2.5 font-bold text-forest"
-            >
-              Register
-            </button>
-          </nav>
-        </div>
-      </header>
+    <div className="bb-card">
+      <h3>{title}</h3>
 
-      <main className="mx-auto max-w[1240px] px-4 py-7">
-        <div className="rounded-2xl border border-line bg-white p-6">
-          <h1 className="text-3xl font-bold">Buy wholesale together</h1>
-          <p className="mt-2 text-muted">
-            Join a group purchase and get wholesale prices on food and household
-            essentials.
-          </p>
-        </div>
-      </main>
+      <p className="bb-price">
+        KSh {Number(price).toLocaleString("en-KE")}
+      </p>
 
-      {tab && (
-        <AuthModal tab={tab} onTab={setTab} onClose={() => setTab(null)} />
-      )}
-    </>
+      <div className="bb-bar">
+        <i style={{ width: progress + "%" }}></i>
+      </div>
+
+      <div className="bb-meta">
+        <span>{current} of {target} ordered</span>
+        <span>{campaign.ends_at || campaign.deadline || "Open"}</span>
+      </div>
+
+      <Link to="/register" className="bb-btn bb-primary">
+        Register to join
+      </Link>
+    </div>
   );
 }
+
+function LandingPage() {
+  const [campaigns, setCampaigns] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/campaigns")
+      .then((response) => response.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setCampaigns(data);
+        } else {
+          setCampaigns(data.campaigns || []);
+        }
+
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.log(error);
+        setLoading(false);
+      });
+  }, []);
+
+  return (
+    <div className="bb">
+
+      {/* Header and hero */}
+      <div className="bb-hero">
+        <div className="bb-wrap">
+
+          <header className="bb-header">
+            <Link to="/" className="bb-logo">
+              Bread &amp; Basket
+            </Link>
+
+            <nav>
+              <Link to="/login" className="bb-link">
+                Log in
+              </Link>
+
+              <Link to="/register" className="bb-btn bb-primary">
+                Register
+              </Link>
+            </nav>
+          </header>
+
+          <h1>Fresh from the baker, shared with the neighbourhood.</h1>
+
+          <p>
+            Join live campaigns from local sellers, order together,
+            and pay with M-Pesa. You don't need an account to look.
+          </p>
+
+          <a href="#campaigns" className="bb-btn bb-primary">
+            See live campaigns
+          </a>
+
+        </div>
+      </div>
+
+      {/* Campaigns */}
+      <section id="campaigns" className="bb-wrap bb-section">
+
+        <h2>Live campaigns</h2>
+
+        <p className="bb-sub">
+          If a campaign closes without reaching its goal, you're refunded.
+        </p>
+
+        {loading && <p>Loading campaigns...</p>}
+
+        {!loading && campaigns.length === 0 && (
+          <p>No campaigns available right now.</p>
+        )}
+
+        <div className="bb-grid">
+          {campaigns.map((campaign) => (
+            <CampaignCard
+              key={campaign.id}
+              campaign={campaign}
+            />
+          ))}
+        </div>
+
+      </section>
+
+      {/* Bottom section */}
+      <section className="bb-closing">
+        <div className="bb-wrap">
+
+          <h2>Ready to fill your basket?</h2>
+
+          <Link to="/register" className="bb-btn bb-primary">
+            Register
+          </Link>
+
+          <Link to="/login" className="bb-link">
+            Log in
+          </Link>
+
+        </div>
+      </section>
+
+    </div>
+  );
+}
+
+export default LandingPage;
