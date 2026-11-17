@@ -21,7 +21,7 @@ function handleUnauthorized() {
   window.dispatchEvent(new Event("auth:session-expired"));
 }
 
-export async function request(path, { method = "GET", body } = {}) {
+export async function request(path, { method = "GET", body, signal } = {}) {
   let response;
 
   const token = getAuthToken();
@@ -31,7 +31,6 @@ export async function request(path, { method = "GET", body } = {}) {
     Accept: "application/json",
   };
 
-  // Automatically attach the logged-in user's access token.
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
@@ -41,8 +40,13 @@ export async function request(path, { method = "GET", body } = {}) {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal,
     });
-  } catch {
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw error;
+    }
+
     throw new ApiError(
       "Cannot reach the server. Check your connection and try again.",
     );
@@ -57,8 +61,6 @@ export async function request(path, { method = "GET", body } = {}) {
   }
 
   if (!response.ok) {
-    // Clear an invalid or expired session when a protected request
-    // receives an unauthorized response.
     if (response.status === 401 && token && path !== "/login") {
       handleUnauthorized();
     }
