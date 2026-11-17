@@ -1,22 +1,25 @@
 import { request } from "./client";
-import * as mockAuth from "../mocks/auth";
 
-export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== "false";
+// Authentication uses the mock API server.
+export const USE_MOCKS = true;
 
 export function login(credentials) {
-  return USE_MOCKS
-    ? mockAuth.login(credentials)
-    : request("/login", { method: "POST", body: credentials });
+  return request("/login", {
+    method: "POST",
+    body: credentials,
+  });
 }
 
 export function registerConsumer(details) {
-  return USE_MOCKS
-    ? mockAuth.registerConsumer(details)
-    : request("/consumers", { method: "POST", body: details });
+  return request("/consumers", {
+    method: "POST",
+    body: details,
+  });
 }
 
 export function registerWholesaler(details) {
-  return USE_MOCKS
-    ? mockAuth.registerWholesaler(details)
-    : request("/wholesalers", { method: "POST", body: details });
+  return request("/wholesalers", {
+    method: "POST",
+    body: details,
+  });
 }
