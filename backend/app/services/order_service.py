@@ -14,7 +14,7 @@ from ..models.enums import (
 )
 from ..errors import NotFound, BusinessRuleError
 from ..extensions import db
-from .service_helpers import add_history
+from .service_helpers import add_history, refund_order
 from datetime import datetime, timezone
 from .payments import SimulatedMpesaGateway
 from uuid import uuid4
@@ -155,17 +155,14 @@ class OrderService:
         order.cancelled_at = now
         order.payment.status = PaymentStatus.REFUNDED
 
-        refund = Refund(
-            payment_id=order.payment.id,
-            order_id=order.id,
-            amount=order.payment.amount,
-            reason=RefundReason.CONSUMER_CANCELLED,
-            processed_by=user.id,
+        refund_order(
+            order,
+            RefundReason.CONSUMER_CANCELLED,
+            OrderStatus.REFUNDED,
+            "Cancelled by consumer",
+            user.id,
         )
 
-        add_history(order.id, OrderStatus.CANCELLED, "Cancelled by consumer", user.id)
-
-        db.session.add(refund)
         db.session.commit()
 
         return order

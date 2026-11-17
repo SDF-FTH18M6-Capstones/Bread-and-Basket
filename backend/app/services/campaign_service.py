@@ -1,10 +1,10 @@
 from ..models import Product, Campaign
-from ..models.enums import CampaignStatus
 from sqlalchemy import select, or_
 from ..extensions import db
 from datetime import timezone, datetime, timedelta
-from ..errors import NotFound
-from ..models.enums import UserRole
+from ..errors import NotFound, BusinessRuleError
+from ..models.enums import UserRole, OrderStatus, CampaignStatus, RefundReason
+from .service_helpers import add_history, refund_order
 
 
 class CampaignService:
@@ -51,3 +51,69 @@ class CampaignService:
             raise NotFound("Campaign not found")
 
         return campaign
+
+    def close_due_campaigns(self):
+        """Close every active campaign whose deadline has passed. Returns one result per campaign."""
+        now = datetime.now(timezone.utc)
+
+        campaigns = db.session.scalars(
+            select(Campaign)
+            .where(Campaign.status == CampaignStatus.ACTIVE, Campaign.deadline <= now)
+            .with_for_update()
+        ).all()
+
+        results = []
+
+        for campaign in campaigns:
+            results.append(self.close_campaign(campaign))
+
+        return results
+
+    def close_campaign(self, campaign, by=None):
+        if campaign.status != CampaignStatus.ACTIVE:
+            raise BusinessRuleError(
+                "Cannot close a campaign that's not active", code="CAMPAIGN_NOT_ACTIVE"
+            )
+
+        now = datetime.now(timezone.utc)
+        orders_confirmed, orders_refunded = 0, 0
+
+        if campaign.min_reached:
+            campaign.status = CampaignStatus.SUCCESSFUL
+            outcome = CampaignStatus.SUCCESSFUL.value
+
+            for order in campaign.orders:
+                if order.status == OrderStatus.PAID:
+                    order.status = OrderStatus.CONFIRMED
+                    add_history(
+                        order.id,
+                        OrderStatus.CONFIRMED,
+                        "Campaign reached its minimum",
+                        by,
+                    )
+                    orders_confirmed += 1
+
+        else:
+            campaign.status = CampaignStatus.FAILED
+            outcome = CampaignStatus.FAILED.value
+
+            for order in campaign.active_orders:
+                if order.status == OrderStatus.PAID:
+                    refund_order(
+                        order,
+                        RefundReason.CAMPAIGN_FAILED,
+                        OrderStatus.REFUNDED,
+                        "Campaign did not reach its minimum",
+                        by,
+                    )
+                    orders_refunded += 1
+
+        campaign.closed_at = now
+        db.session.commit()
+
+        return {
+            "campaign": campaign,
+            "outcome": outcome,
+            "orders_confirmed": orders_confirmed,
+            "orders_refunded": orders_refunded,
+        }
