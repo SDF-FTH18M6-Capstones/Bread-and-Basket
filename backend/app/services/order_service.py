@@ -109,3 +109,21 @@ class OrderService:
         db.session.commit()
 
         return order
+
+    def list_my_orders(self, user):
+        order_consumer_id = user.id
+        orders = db.session.scalars(
+            select(Order)
+            .where(Order.consumer_id == order_consumer_id)
+            .order_by(Order.created_at)
+        ).all()
+
+        return orders
+
+    def get_viewer_order(self, order_id, user):
+        order = db.session.get(Order, order_id)
+
+        if order is None or order.consumer_id != user.id:
+            raise NotFound("Order not Found")
+
+        return order

@@ -48,6 +48,6 @@ class CampaignService:
         if campaign is None or (
             campaign.status == CampaignStatus.DRAFT and not is_admin
         ):
-            raise NotFound("Campaign not found", code="CAMPAIGN_NOT_FOUND")
+            raise NotFound("Campaign not found")
 
         return campaign
