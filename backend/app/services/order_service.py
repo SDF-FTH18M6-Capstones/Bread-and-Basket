@@ -3,10 +3,18 @@ from ..models.orders import Order
 from ..models.location import Location
 from ..models.campaigns import Campaign
 from ..models.payments import Payment
+from ..models.refunds import Refund
 from ..models.orderStatusHistory import OrderStatusHistory
-from ..models.enums import CampaignStatus, FulfilmentType, OrderStatus, PaymentStatus
+from ..models.enums import (
+    CampaignStatus,
+    FulfilmentType,
+    OrderStatus,
+    PaymentStatus,
+    RefundReason,
+)
 from ..errors import NotFound, BusinessRuleError
 from ..extensions import db
+from .service_helpers import add_history
 from datetime import datetime, timezone
 from .payments import SimulatedMpesaGateway
 from uuid import uuid4
@@ -98,14 +106,13 @@ class OrderService:
             status=PaymentStatus.SUCCESSFUL,
         )
 
-        order_status_history = OrderStatusHistory(
-            order_id=order.id,
-            status=OrderStatus.PAID,
-            note="Payment received",
-            updated_by=None,
+        add_history(
+            order.id,
+            OrderStatus.PAID,
+            "Payment received",
         )
 
-        db.session.add_all([payment, order_status_history])
+        db.session.add(payment)
         db.session.commit()
 
         return order
@@ -115,7 +122,7 @@ class OrderService:
         orders = db.session.scalars(
             select(Order)
             .where(Order.consumer_id == order_consumer_id)
-            .order_by(Order.created_at)
+            .order_by(Order.created_at.desc())
         ).all()
 
         return orders
@@ -124,6 +131,63 @@ class OrderService:
         order = db.session.get(Order, order_id)
 
         if order is None or order.consumer_id != user.id:
-            raise NotFound("Order not Found")
+            raise NotFound("Order not found", code="ORDER_NOT_FOUND")
+
+        return order
+
+    def cancel_order(self, order_id, user):
+        order = self.get_viewer_order(order_id, user)
+
+        if order.status not in (OrderStatus.PAID, OrderStatus.CONFIRMED):
+            raise BusinessRuleError(
+                f"An order that is {order.status.value} cannot be cancelled.",
+                code="ORDER_NOT_CANCELLABLE",
+            )
+        now = datetime.now(timezone.utc)
+
+        if now > order.cancellation_cutoff:
+            raise BusinessRuleError(
+                "This order can no longer be cancelled ",
+                code="PAST_CANCELLATION_CUTOFF",
+            )
+
+        order.status = OrderStatus.CANCELLED
+        order.cancelled_at = now
+        order.payment.status = PaymentStatus.REFUNDED
+
+        refund = Refund(
+            payment_id=order.payment.id,
+            order_id=order.id,
+            amount=order.payment.amount,
+            reason=RefundReason.CONSUMER_CANCELLED,
+            processed_by=user.id,
+        )
+
+        add_history(order.id, OrderStatus.CANCELLED, "Cancelled by consumer", user.id)
+
+        db.session.add(refund)
+        db.session.commit()
+
+        return order
+
+    def confirm_receipt(self, order_id, user):
+        order = self.get_viewer_order(order_id, user)
+
+        if order.status not in (
+            OrderStatus.DISPATCHED,
+            OrderStatus.READY_FOR_COLLECTION,
+        ):
+            raise BusinessRuleError("Order is not ready", code="ORDER_NOT_READY")
+
+        order.status = OrderStatus.COMPLETED
+
+        add_history(
+            order.id,
+            OrderStatus.COMPLETED,
+            "Receipt confirmed by consumer",
+            user.id,
+        )
+
+        db.session.commit()
 
         return order
