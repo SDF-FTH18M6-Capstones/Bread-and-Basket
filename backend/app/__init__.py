@@ -8,6 +8,7 @@ from .routes.auth import blp as auth_blp
 from .routes.campaign import blp as campaign_blp
 from .routes.location import blp as location_blp
 from .routes.order import blp as order_blp
+from .commands import register_commands
 
 
 def create_app(config_class=None):
@@ -24,6 +25,8 @@ def create_app(config_class=None):
     api.init_app(app)
     bcrypt.init_app(app)
     cors.init_app(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
+
+    register_commands(app)
 
     @app.errorhandler(AppError)
     def handle_app_error(e):
