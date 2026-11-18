@@ -8,6 +8,8 @@ from .routes.auth import blp as auth_blp
 from .routes.campaign import blp as campaign_blp
 from .routes.location import blp as location_blp
 from .routes.order import blp as order_blp
+from .routes.admin import blp as admin_blp
+
 from .commands import register_commands
 
 
@@ -85,5 +87,6 @@ def create_app(config_class=None):
     api.register_blueprint(campaign_blp)
     api.register_blueprint(location_blp)
     api.register_blueprint(order_blp)
+    api.register_blueprint(admin_blp)
 
     return app
