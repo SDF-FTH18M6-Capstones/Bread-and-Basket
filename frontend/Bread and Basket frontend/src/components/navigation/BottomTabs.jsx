@@ -4,10 +4,38 @@ import { AuthContext } from "../../features/auth/authContext";
 import { getLinksForRole } from "../../lib/navConfig";
 import "./Navigation.css";
 
-// Mobile bottom tab bar. Hidden on desktop.
 export default function BottomTabs() {
   const { user } = useContext(AuthContext) ?? {};
   const links = getLinksForRole(user?.role);
+
+  if (user?.role === "admin") {
+    return (
+      <nav className="admin-bottom-tabs" aria-label="Admin navigation">
+        {links.map((link) =>
+          link.enabled ? (
+            <NavLink
+              key={link.label}
+              to={link.to}
+              end
+              className={({ isActive }) =>
+                `admin-bottom-tabs__tab${isActive ? " is-active" : ""}`
+              }
+            >
+              {link.label}
+            </NavLink>
+          ) : (
+            <span
+              key={link.label}
+              className="admin-bottom-tabs__tab admin-bottom-tabs__tab--disabled"
+              aria-disabled="true"
+            >
+              {link.label}
+            </span>
+          ),
+        )}
+      </nav>
+    );
+  }
 
   return (
     <nav className="bottom-tabs">
@@ -16,7 +44,9 @@ export default function BottomTabs() {
           key={link.to}
           to={link.to}
           end={link.to === "/"}
-          className={({ isActive }) => `bottom-tabs__tab${isActive ? " is-active" : ""}`}
+          className={({ isActive }) =>
+            `bottom-tabs__tab${isActive ? " is-active" : ""}`
+          }
         >
           <span className="bottom-tabs__icon" aria-hidden="true">
             {link.icon}

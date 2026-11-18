@@ -63,11 +63,78 @@ function SellerSidebar({ user, logout }) {
   );
 }
 
+function AdminSidebar({ user }) {
+  const links = getLinksForRole("admin");
+
+  return (
+    <aside className="admin-sidebar">
+      <div className="admin-sidebar__brand">
+        <NavLink to="/admin" className="admin-brand">
+          <span className="admin-brand__name">Bread & Basket</span>
+          <span className="admin-brand__role">Admin</span>
+        </NavLink>
+      </div>
+
+      <nav className="admin-sidebar__links" aria-label="Admin navigation">
+        {links.map((link) =>
+          link.enabled ? (
+            <NavLink
+              key={link.label}
+              to={link.to}
+              end
+              className={({ isActive }) =>
+                `admin-nav-link${isActive ? " is-active" : ""}`
+              }
+            >
+              {link.label}
+            </NavLink>
+          ) : (
+            <span
+              key={link.label}
+              className="admin-nav-link admin-nav-link--disabled"
+              aria-disabled="true"
+            >
+              {link.label}
+            </span>
+          ),
+        )}
+      </nav>
+
+      <div className="admin-sidebar__footer">
+        <p className="admin-sidebar__user-name">
+          {user?.full_name || user?.email || "Account"}
+        </p>
+        <p className="admin-sidebar__user-role">Platform admin</p>
+      </div>
+    </aside>
+  );
+}
+
 export default function Layout() {
   const { user, logout } = useAuth();
-  const isSeller = user?.role === "seller";
+  const role = user?.role;
 
-  if (isSeller) {
+  if (role === "admin") {
+    return (
+      <div className="admin-layout">
+        <AdminSidebar user={user} />
+
+        <div className="admin-layout__content">
+          <div className="admin-mobile-header">
+            <Navbar />
+          </div>
+
+          <main className="admin-main">
+            <Outlet />
+          </main>
+
+          <BottomTabs />
+        </div>
+      </div>
+    );
+  }
+
+  if (role === "seller") {
     return (
       <div className="flex min-h-screen bg-canvas">
         <SellerSidebar user={user} logout={logout} />
