@@ -8,14 +8,31 @@ export default function Navbar() {
   const { user, logout } = useContext(AuthContext) ?? {};
   const links = getLinksForRole(user?.role);
 
+  if (user?.role === "admin") {
+    return (
+      <header className="admin-mobile-navbar">
+        <Link to="/admin" className="admin-mobile-navbar__brand">
+          <span className="admin-mobile-navbar__name">Bread &amp; Basket</span>
+          <span className="admin-mobile-navbar__role">Admin</span>
+        </Link>
+
+        <button
+          type="button"
+          className="admin-mobile-navbar__logout"
+          onClick={logout}
+        >
+          Logout
+        </button>
+      </header>
+    );
+  }
+
   const homeLink =
     user?.role === "consumer"
       ? "/shop"
       : user?.role === "seller"
         ? "/seller"
-        : user?.role === "admin"
-          ? "/admin"
-          : "/";
+        : "/";
 
   return (
     <header className="navbar">

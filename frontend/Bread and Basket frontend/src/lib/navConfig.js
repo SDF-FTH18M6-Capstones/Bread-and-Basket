@@ -9,10 +9,11 @@ export const NAV_LINKS = {
   seller: [{ to: "/seller", label: "Products" }],
 
   admin: [
-    { to: "/admin", label: "Dashboard" },
-    { to: "/admin/users", label: "Users" },
-    { to: "/admin/campaigns", label: "Campaigns" },
-    { to: "/admin/reports", label: "Reports" },
+    { label: "Dashboard", enabled: false },
+    { to: "/admin", label: "Approvals", enabled: true },
+    { label: "Campaigns", enabled: false },
+    { label: "Orders & payments", enabled: false },
+    { label: "Notifications", enabled: false },
   ],
 };
 
