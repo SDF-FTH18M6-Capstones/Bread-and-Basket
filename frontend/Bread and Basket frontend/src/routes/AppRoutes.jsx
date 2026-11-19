@@ -5,14 +5,18 @@ import LandingPage from "../features/landing/LandingPage";
 
 import ShopHome from "../features/shop/ShopHome";
 import CampaignDetailPage from "../features/shop/CampaignDetailPage";
+
+import AdminHome from "../features/admin/AdminHome";
+import AdminCampaignsPage from "../features/admin/AdminCampaignsPage";
+import AdminCampaignDetailPage from "../features/admin/AdminCampaignDetailPage";
+import AdminCampaignFormPage from "../features/admin/AdminCampaignFormPage";
+
 import OrdersPage from "../features/orders/ordersPage";
 import OrderDetailPage from "../features/orders/ordersDetailPage";
 
 import SellerDashboard from "../features/seller/SellerDashboard";
 import SellerHome from "../features/seller/SellerHome";
 import SellerCampaigns from "../features/seller/SellerCampaigns";
-
-import AdminHome from "../features/admin/AdminHome";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -25,12 +29,10 @@ export default function AppRoutes() {
         {/* Consumer Routes */}
         <Route element={<ProtectedRoute allowedRoles={["consumer"]} />}>
           <Route path="/shop" element={<ShopHome />} />
-
           <Route
             path="/campaigns/:campaignId"
             element={<CampaignDetailPage />}
           />
-
           <Route path="/orders" element={<OrdersPage />} />
 
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
@@ -48,6 +50,23 @@ export default function AppRoutes() {
         {/* Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
           <Route path="/admin" element={<AdminHome />} />
+
+          <Route path="/admin/campaigns" element={<AdminCampaignsPage />} />
+
+          <Route
+            path="/admin/campaigns/new"
+            element={<AdminCampaignFormPage />}
+          />
+
+          <Route
+            path="/admin/campaigns/:campaignId/edit"
+            element={<AdminCampaignFormPage />}
+          />
+
+          <Route
+            path="/admin/campaigns/:campaignId"
+            element={<AdminCampaignDetailPage />}
+          />
         </Route>
       </Route>
     </Routes>

@@ -49,7 +49,6 @@ class Campaign(BaseModel):
 
     @property
     def active_orders(self) -> list:
-
         return [order for order in self.orders if order.is_live]
 
     @property
