@@ -11,12 +11,13 @@ export const NAV_LINKS = {
   admin: [
     { label: "Dashboard", enabled: false },
     { to: "/admin", label: "Approvals", enabled: true },
-    { label: "Campaigns", enabled: false },
+    { to: "/admin/campaigns", label: "Campaigns", enabled: true },
     { label: "Orders & payments", enabled: false },
     { label: "Notifications", enabled: false },
   ],
 };
 
+// Other names the backend might use for the same role.
 const ROLE_ALIASES = {
   buyer: "consumer",
   customer: "consumer",
@@ -26,7 +27,8 @@ const ROLE_ALIASES = {
 };
 
 export function getLinksForRole(role) {
-  const key = ROLE_ALIASES[role?.toLowerCase()] ?? role?.toLowerCase();
+  const normalizedRole = role?.toLowerCase();
+  const key = ROLE_ALIASES[normalizedRole] ?? normalizedRole;
 
   return NAV_LINKS[key] ?? [];
 }
