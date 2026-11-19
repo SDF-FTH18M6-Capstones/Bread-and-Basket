@@ -34,35 +34,28 @@ export default function AppRoutes() {
             element={<CampaignDetailPage />}
           />
           <Route path="/orders" element={<OrdersPage />} />
-
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
         </Route>
 
         {/* Seller Routes */}
         <Route element={<ProtectedRoute allowedRoles={["seller"]} />}>
           <Route path="/seller" element={<SellerDashboard />} />
-
           <Route path="/seller/products" element={<SellerHome />} />
-
           <Route path="/seller/campaigns" element={<SellerCampaigns />} />
         </Route>
 
         {/* Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
           <Route path="/admin" element={<AdminHome />} />
-
           <Route path="/admin/campaigns" element={<AdminCampaignsPage />} />
-
           <Route
             path="/admin/campaigns/new"
             element={<AdminCampaignFormPage />}
           />
-
           <Route
             path="/admin/campaigns/:campaignId/edit"
             element={<AdminCampaignFormPage />}
           />
-
           <Route
             path="/admin/campaigns/:campaignId"
             element={<AdminCampaignDetailPage />}
