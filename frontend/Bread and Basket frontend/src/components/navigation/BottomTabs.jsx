@@ -7,7 +7,7 @@ import "./Navigation.css";
 // Mobile bottom tab bar. Hidden on desktop.
 export default function BottomTabs() {
   const { user } = useContext(AuthContext) ?? {};
-  const links = getLinksForRole(user?.role);
+  const links = getLinksForRole(user?.role) ?? [];
 
   return (
     <nav className="bottom-tabs">

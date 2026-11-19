@@ -6,7 +6,7 @@ import "./Navigation.css";
 
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext) ?? {};
-  const links = getLinksForRole(user?.role);
+  const links = getLinksForRole(user?.role) ?? [];
 
   const homeLink =
     user?.role === "consumer"
@@ -20,7 +20,7 @@ export default function Navbar() {
   return (
     <header className="navbar">
       <Link to={homeLink} className="navbar__brand">
-        🍞 Bread &amp; Basket
+        📦 Bread &amp; Basket
       </Link>
 
       <nav className="navbar__links">
@@ -48,4 +48,4 @@ export default function Navbar() {
       )}
     </header>
   );
-}
+} 
