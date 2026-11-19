@@ -1,3 +1,20 @@
+// Bread & Basket mock API
+// -----------------------------------------------------------------------------
+// A stand-in for the Flask backend while it is being built. Unlike Prism it
+// REMEMBERS what you do (place an order, then see it in My Orders) and it
+// enforces the same business rules as the real API (a pending seller can't
+// submit products, totals are calculated, cancel only before the cutoff...).
+//
+// Data = the same as backend/seed.py (same users, ids, products, campaigns and
+// orders), with dates relative to when the server starts.
+//
+// Run:    node mock-server.mjs            (Node 18+, no npm install needed)
+// Port:   PORT=4010 by default (same as Prism), e.g.  PORT=5001 node mock-server.mjs
+// Paths:  served both with and without /api, so /campaigns and /api/campaigns both work
+// Reset:  POST /__reset puts every row back to the start (or just restart the server)
+// Login:  every demo account's password is  test12345
+// -----------------------------------------------------------------------------
+
 import http from "node:http";
 import { randomUUID } from "node:crypto";
 
@@ -217,7 +234,9 @@ const campaignDetail = (c, user) => {
 const adminCampaign = (c) => ({
   ...campaignSummary(c), platform_charge: c.platform_charge, min_order_quantity: c.min_order_quantity, max_per_user: c.max_per_user,
   cancellation_cutoff: iso(c.cancellation_cutoff), closed_at: iso(c.closed_at), created_at: iso(c.created_at),
+  stock_confirmed_at: iso(c.stock_confirmed_at),
 });
+const sellerCampaign = (c) => ({ ...campaignSummary(c), stock_confirmed_at: iso(c.stock_confirmed_at) });
 const locationJson = (l) => ({ id: l.id, name: l.name, delivery_fee: l.delivery_fee, collection_point: l.collection_point });
 const refundJson = (o) => {
   const r = db.refunds.find((x) => x.order_id === o.id);
@@ -536,7 +555,7 @@ route("POST", "/seller/products", ({ req, body }) => {
 route("GET", "/seller/campaigns", ({ req }) => {
   const [, prof] = sellerOf(req);
   const list = db.campaigns.filter((c) => c.status !== "draft" && productOf(c).seller_id === prof.id);
-  return [200, sortBy(list, (c) => c.deadline).map(campaignSummary)];
+  return [200, sortBy(list, (c) => c.deadline).map(sellerCampaign)];
 });
 route("GET", "/seller/campaigns/{id}/orders", ({ req, params }) => {
   const [, prof] = sellerOf(req);
@@ -551,7 +570,16 @@ route("GET", "/seller/campaigns/{id}/orders", ({ req, params }) => {
     }
     return { total_units: orders.reduce((s, o) => s + o.quantity, 0), order_count: orders.length, locations: sortBy([...byLoc.values()], (r) => -r.units) };
   };
-  return [200, { campaign: campaignSummary(c), delivery: group("delivery"), collection: group("collection") }];
+  return [200, { campaign: sellerCampaign(c), delivery: group("delivery"), collection: group("collection") }];
+});
+route("POST", "/seller/campaigns/{id}/confirm-stock", ({ req, params }) => {
+  const [, prof] = sellerOf(req);
+  const c = byId("campaigns", params.id);
+  if (!c || c.status === "draft" || productOf(c).seller_id !== prof.id) throw notFound("Campaign not found.");
+  if (!["successful", "fulfilling"].includes(c.status)) throw bad("CAMPAIGN_NOT_READY", "Stock can only be confirmed for a successful campaign.");
+  if (c.stock_confirmed_at) throw bad("STOCK_ALREADY_CONFIRMED", "You have already confirmed stock for this campaign.");
+  c.stock_confirmed_at = Date.now();
+  return [200, sellerCampaign(c)];
 });
 
 // Admin: sellers and products

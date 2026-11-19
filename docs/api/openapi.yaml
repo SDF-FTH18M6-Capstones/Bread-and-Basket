@@ -259,6 +259,11 @@ paths:
                 belowMinimum: { $ref: '#/components/examples/ErrorBelowMinimum' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: Campaign not found (or still a draft)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '422':
           description: Fields failed validation
           content:
@@ -420,6 +425,12 @@ paths:
               schema: { $ref: '#/components/schemas/SellerProduct' }
               examples:
                 submitted: { $ref: '#/components/examples/SellerProductPending' }
+        '400':
+          description: retail_price must be higher than wholesale_price
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: The shop price must be higher than your wholesale price., code: RETAIL_NOT_ABOVE_WHOLESALE }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403':
           description: Not a seller, or the seller is not approved yet
@@ -443,7 +454,7 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/CampaignSummary' }
+                items: { $ref: '#/components/schemas/SellerCampaign' }
               examples:
                 davy: { $ref: '#/components/examples/SellerCampaignList' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -468,6 +479,38 @@ paths:
               schema: { $ref: '#/components/schemas/SellerCampaignOrders' }
               examples:
                 tomatoes: { $ref: '#/components/examples/SellerCampaignOrdersTomatoes' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /seller/campaigns/{campaign_id}/confirm-stock:
+    parameters:
+      - $ref: '#/components/parameters/CampaignId'
+    post:
+      summary: Confirm I can supply this campaign
+      description: >
+        For a campaign on this seller's product that reached its minimum (successful or fulfilling).
+        Sets stock_confirmed_at, which the admin sees before starting fulfilment. It can be done once:
+        400 CAMPAIGN_NOT_READY for any other status, 400 STOCK_ALREADY_CONFIRMED the second time.
+        Another seller's campaign, or a draft, is 404.
+      operationId: confirmStock
+      tags: [Seller]
+      responses:
+        '200':
+          description: The campaign, with stock_confirmed_at set
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SellerCampaign' }
+              examples:
+                confirmed: { $ref: '#/components/examples/SellerCampaignStockConfirmed' }
+        '400':
+          description: The campaign is not ready, or stock is already confirmed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                notReady: { $ref: '#/components/examples/ErrorCampaignNotReady' }
+                alreadyConfirmed: { $ref: '#/components/examples/ErrorStockAlreadyConfirmed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -673,6 +716,11 @@ paths:
                 productNotApproved: { $ref: '#/components/examples/ErrorProductNotApproved' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '422': { $ref: '#/components/responses/ValidationFailed' }
 
   /admin/campaigns/{campaign_id}:
@@ -1334,7 +1382,7 @@ components:
       type: object
       required: [campaign, delivery, collection]
       properties:
-        campaign: { $ref: '#/components/schemas/CampaignSummary' }
+        campaign: { $ref: '#/components/schemas/SellerCampaign' }
         delivery: { $ref: '#/components/schemas/FulfilmentGroup' }
         collection: { $ref: '#/components/schemas/FulfilmentGroup' }
 
@@ -1386,12 +1434,24 @@ components:
                 - type: 'null'
             reviewed_at: { type: [string, 'null'], format: date-time }
 
+    # The seller's view of a campaign: the summary plus when they confirmed stock.
+    SellerCampaign:
+      allOf:
+        - $ref: '#/components/schemas/CampaignSummary'
+        - type: object
+          required: [stock_confirmed_at]
+          properties:
+            stock_confirmed_at:
+              type: [string, 'null']
+              format: date-time
+              description: When the seller confirmed they can supply (POST .../confirm-stock). Null until then.
+
     # The admin's view of a campaign: every status, plus the settings and dates.
     AdminCampaign:
       allOf:
         - $ref: '#/components/schemas/CampaignSummary'
         - type: object
-          required: [platform_charge, min_order_quantity, max_per_user, cancellation_cutoff, closed_at, created_at]
+          required: [platform_charge, min_order_quantity, max_per_user, cancellation_cutoff, closed_at, created_at, stock_confirmed_at]
           properties:
             platform_charge: { type: integer }
             min_order_quantity: { type: integer }
@@ -1399,6 +1459,7 @@ components:
             cancellation_cutoff: { type: string, format: date-time }
             closed_at: { type: [string, 'null'], format: date-time }
             created_at: { type: string, format: date-time }
+            stock_confirmed_at: { type: [string, 'null'], format: date-time, description: When the seller confirmed stock. Null until then. }
 
     CampaignCreate:
       type: object
@@ -1852,15 +1913,42 @@ components:
     SellerCampaignList:
       summary: Campaigns on Davy's products, in different statuses
       value:
-        - { id: 8, title: Tomato Crate Share, status: active, campaign_price: 450, min_quantity: 15, max_quantity: 40, deadline: '2026-11-14T18:00:00+03:00', ordered_quantity: 12, households: 5, min_reached: false, sold_out: false, savings_per_unit: 150, product: *tomatoes }
-        - { id: 3, title: Cooking Oil Family Deal, status: active, campaign_price: 460, min_quantity: 20, max_quantity: 120, deadline: '2026-11-23T18:00:00+03:00', ordered_quantity: 0, households: 0, min_reached: false, sold_out: false, savings_per_unit: 60, product: { id: 3, name: Cooking oil, unit: 2 litres, category: cooking_oil, image_url: null, retail_price: 520 } }
-        - *tomatoCampaign
-        - { id: 6, title: Hass Avocado Tray Share, status: failed, campaign_price: 520, min_quantity: 20, max_quantity: 60, deadline: '2026-11-08T18:00:00+03:00', ordered_quantity: 0, households: 0, min_reached: false, sold_out: false, savings_per_unit: 130, product: { id: 9, name: Hass avocados, unit: 5kg tray, category: fruits, image_url: null, retail_price: 650 } }
+        - { id: 8, title: Tomato Crate Share, status: active, campaign_price: 450, min_quantity: 15, max_quantity: 40, deadline: '2026-11-14T18:00:00+03:00', ordered_quantity: 12, households: 5, min_reached: false, sold_out: false, savings_per_unit: 150, product: *tomatoes, stock_confirmed_at: null }
+        - { id: 3, title: Cooking Oil Family Deal, status: active, campaign_price: 460, min_quantity: 20, max_quantity: 120, deadline: '2026-11-23T18:00:00+03:00', ordered_quantity: 0, households: 0, min_reached: false, sold_out: false, savings_per_unit: 60, product: { id: 3, name: Cooking oil, unit: 2 litres, category: cooking_oil, image_url: null, retail_price: 520 }, stock_confirmed_at: null }
+        - id: 7
+          title: Tomato Crate Share (early November)
+          status: fulfilling
+          campaign_price: 450
+          min_quantity: 15
+          max_quantity: 40
+          deadline: '2026-11-08T18:00:00+03:00'
+          ordered_quantity: 17
+          households: 4
+          min_reached: true
+          sold_out: false
+          savings_per_unit: 150
+          product: *tomatoes
+          stock_confirmed_at: '2026-11-09T10:00:00+03:00'
+        - { id: 6, title: Hass Avocado Tray Share, status: failed, campaign_price: 520, min_quantity: 20, max_quantity: 60, deadline: '2026-11-08T18:00:00+03:00', ordered_quantity: 0, households: 0, min_reached: false, sold_out: false, savings_per_unit: 130, product: { id: 9, name: Hass avocados, unit: 5kg tray, category: fruits, image_url: null, retail_price: 650 }, stock_confirmed_at: null }
 
     SellerCampaignOrdersTomatoes:
       summary: What Davy must supply for the fulfilling tomato campaign
       value:
-        campaign: *tomatoCampaign
+        campaign:
+          id: 7
+          title: Tomato Crate Share (early November)
+          status: fulfilling
+          campaign_price: 450
+          min_quantity: 15
+          max_quantity: 40
+          deadline: '2026-11-08T18:00:00+03:00'
+          ordered_quantity: 17
+          households: 4
+          min_reached: true
+          sold_out: false
+          savings_per_unit: 150
+          product: *tomatoes
+          stock_confirmed_at: '2026-11-09T10:00:00+03:00'
         delivery:
           total_units: 9
           order_count: 2
@@ -1932,6 +2020,7 @@ components:
         cancellation_cutoff: '2026-12-10T18:00:00+03:00'
         closed_at: null
         created_at: '2026-11-13T21:00:00+03:00'
+        stock_confirmed_at: null
 
     AdminCampaignList:
       summary: A draft and a fulfilling campaign
@@ -1956,6 +2045,7 @@ components:
           cancellation_cutoff: '2026-11-07T18:00:00+03:00'
           closed_at: '2026-11-08T18:00:00+03:00'
           created_at: '2026-10-30T09:00:00+03:00'
+          stock_confirmed_at: '2026-11-09T10:00:00+03:00'
 
     CampaignCloseFailed:
       summary: The avocado campaign missed its minimum; both orders refunded automatically
@@ -1983,6 +2073,7 @@ components:
           cancellation_cutoff: '2026-11-05T18:00:00+03:00'
           closed_at: '2026-11-08T18:00:00+03:00'
           created_at: '2026-10-28T09:00:00+03:00'
+          stock_confirmed_at: null
 
     AdminOrderListTomatoes:
       summary: The tomato campaign's four orders at different steps
@@ -2010,6 +2101,15 @@ components:
     ErrorCampaignNotDraft:
       summary: Tried to edit a campaign that is no longer a draft
       value: { error: Only draft campaigns can be edited., code: CAMPAIGN_NOT_DRAFT }
+    ErrorCampaignNotReady:
+      summary: Stock can only be confirmed once the campaign reached its minimum
+      value: { error: Stock can only be confirmed for a successful campaign., code: CAMPAIGN_NOT_READY }
+    ErrorStockAlreadyConfirmed:
+      summary: Stock was already confirmed for this campaign
+      value: { error: You have already confirmed stock for this campaign., code: STOCK_ALREADY_CONFIRMED }
+    SellerCampaignStockConfirmed:
+      summary: Jelani confirms stock for the rice campaign after it succeeded
+      value: { id: 1, title: Rice November Drive, status: successful, campaign_price: 130, min_quantity: 20, max_quantity: 200, deadline: '2026-11-16T18:00:00+03:00', ordered_quantity: 36, households: 4, min_reached: true, sold_out: false, savings_per_unit: 40, product: *rice, stock_confirmed_at: '2026-11-17T09:30:00+03:00' }
     ErrorInvalidStatusStep:
       summary: A step that is not allowed for this order
       value: { error: A collection order cannot be marked as dispatched., code: INVALID_STATUS_STEP }
@@ -2024,10 +2124,10 @@ components:
       value: { id: 6, name: Rosecoco beans, unit: 1kg, category: pulses, image_url: null, retail_price: 180, description: Quality Rosecoco beans for everyday meals., wholesale_price: 130, stock_quantity: 200, approval_status: rejected, rejection_reason: Unit weight and photo missing. Please resubmit., created_at: '2026-11-08T10:00:00+03:00', source: seller, seller: { id: 2, business_name: Davy Fresh Supplies, verification_status: approved }, reviewed_at: '2026-11-13T09:10:00+03:00' }
     AdminCampaignActive:
       summary: The sugar draft after activation
-      value: { id: 4, title: White Sugar Wholesale Deal, status: active, campaign_price: 180, min_quantity: 50, max_quantity: 300, deadline: '2026-12-13T18:00:00+03:00', ordered_quantity: 0, households: 0, min_reached: false, sold_out: false, savings_per_unit: 25, product: { id: 4, name: White sugar, unit: 1kg, category: sugar, image_url: null, retail_price: 205 }, platform_charge: 10, min_order_quantity: 3, max_per_user: 10, cancellation_cutoff: '2026-12-10T18:00:00+03:00', closed_at: null, created_at: '2026-11-13T21:00:00+03:00' }
+      value: { id: 4, title: White Sugar Wholesale Deal, status: active, campaign_price: 180, min_quantity: 50, max_quantity: 300, deadline: '2026-12-13T18:00:00+03:00', ordered_quantity: 0, households: 0, min_reached: false, sold_out: false, savings_per_unit: 25, product: { id: 4, name: White sugar, unit: 1kg, category: sugar, image_url: null, retail_price: 205 }, platform_charge: 10, min_order_quantity: 3, max_per_user: 10, cancellation_cutoff: '2026-12-10T18:00:00+03:00', closed_at: null, created_at: '2026-11-13T21:00:00+03:00', stock_confirmed_at: null }
     AdminCampaignCancelled:
       summary: The sugar draft after cancelling
-      value: { id: 4, title: White Sugar Wholesale Deal, status: cancelled, campaign_price: 180, min_quantity: 50, max_quantity: 300, deadline: '2026-12-13T18:00:00+03:00', ordered_quantity: 0, households: 0, min_reached: false, sold_out: false, savings_per_unit: 25, product: { id: 4, name: White sugar, unit: 1kg, category: sugar, image_url: null, retail_price: 205 }, platform_charge: 10, min_order_quantity: 3, max_per_user: 10, cancellation_cutoff: '2026-12-10T18:00:00+03:00', closed_at: '2026-11-13T21:30:00+03:00', created_at: '2026-11-13T21:00:00+03:00' }
+      value: { id: 4, title: White Sugar Wholesale Deal, status: cancelled, campaign_price: 180, min_quantity: 50, max_quantity: 300, deadline: '2026-12-13T18:00:00+03:00', ordered_quantity: 0, households: 0, min_reached: false, sold_out: false, savings_per_unit: 25, product: { id: 4, name: White sugar, unit: 1kg, category: sugar, image_url: null, retail_price: 205 }, platform_charge: 10, min_order_quantity: 3, max_per_user: 10, cancellation_cutoff: '2026-12-10T18:00:00+03:00', closed_at: '2026-11-13T21:30:00+03:00', created_at: '2026-11-13T21:00:00+03:00', stock_confirmed_at: null }
     AdminOrderDispatched:
       summary: Wanjiku's delivery order after it was dispatched
       value: { id: 9, order_no: ODR-10009, status: dispatched, quantity: 4, total_amount: 2040, fulfilment: delivery, location: { id: 4, name: Rongai, collection_point: 'Rongai main stage pickup point, Magadi Road' }, delivery_address: 'Ongata Rongai, Gate 3, Tuskys Road', consumer: { id: 5, full_name: Wanjiku Mwangi, phone: '+254711000004' }, created_at: '2026-11-07T08:45:00+03:00', next_statuses: [] }
