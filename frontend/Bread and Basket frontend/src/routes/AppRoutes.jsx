@@ -8,6 +8,9 @@ import CampaignDetailPage from "../features/shop/CampaignDetailPage";
 import SellerHome from "../features/seller/SellerHome";
 
 import AdminHome from "../features/admin/AdminHome";
+import AdminCampaignsPage from "../features/admin/AdminCampaignsPage";
+import AdminCampaignDetailPage from "../features/admin/AdminCampaignDetailPage";
+import AdminCampaignFormPage from "../features/admin/AdminCampaignFormPage";
 
 import OrdersPage from "../features/orders/ordersPage";
 import OrderDetailPage from "../features/orders/ordersDetailPage";
@@ -22,12 +25,10 @@ export default function AppRoutes() {
       <Route element={<Layout />}>
         <Route element={<ProtectedRoute allowedRoles={["consumer"]} />}>
           <Route path="/shop" element={<ShopHome />} />
-
           <Route
             path="/campaigns/:campaignId"
             element={<CampaignDetailPage />}
           />
-
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
         </Route>
@@ -38,6 +39,23 @@ export default function AppRoutes() {
 
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
           <Route path="/admin" element={<AdminHome />} />
+
+          <Route path="/admin/campaigns" element={<AdminCampaignsPage />} />
+
+          <Route
+            path="/admin/campaigns/new"
+            element={<AdminCampaignFormPage />}
+          />
+
+          <Route
+            path="/admin/campaigns/:campaignId/edit"
+            element={<AdminCampaignFormPage />}
+          />
+
+          <Route
+            path="/admin/campaigns/:campaignId"
+            element={<AdminCampaignDetailPage />}
+          />
         </Route>
       </Route>
     </Routes>
