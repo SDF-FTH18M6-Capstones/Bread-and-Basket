@@ -98,6 +98,7 @@ class CampaignService:
             outcome = CampaignStatus.FAILED.value
 
             for order in campaign.active_orders:
+                print("we were touched")
                 if order.status == OrderStatus.PAID:
                     refund_order(
                         order,

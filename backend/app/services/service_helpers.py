@@ -13,6 +13,9 @@ def add_history(order_id, status, note, by=None):
 
 def refund_order(order, reason, new_status, note, by=None):
     """Refund an order in full"""
+    print("An order came through here")
+    print(f"Order referrence: {order.order_no}")
+    print(f"Amount refunded: {order.payment.amount}")
     order.payment.status = PaymentStatus.REFUNDED
     db.session.add(
         Refund(
