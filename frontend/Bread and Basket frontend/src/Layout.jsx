@@ -86,7 +86,7 @@ function AdminSidebar({ user }) {
                 `admin-nav-link${isActive ? " is-active" : ""}`
               }
             >
-              {link.label}
+              {link.desktopLabel ?? link.label}
             </NavLink>
           ) : (
             <span
@@ -94,7 +94,7 @@ function AdminSidebar({ user }) {
               className="admin-nav-link admin-nav-link--disabled"
               aria-disabled="true"
             >
-              {link.label}
+              {link.desktopLabel ?? link.label}
             </span>
           ),
         )}

@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+
 import {
   getAdminCampaigns,
   activateCampaign,
   cancelCampaign,
   closeCampaign,
 } from "../../api/adminCampaigns";
+
+import {
+  getCampaignOrders,
+  updateCampaignOrdersStatus,
+  updateAdminOrderStatus,
+} from "../../api/adminOrders";
 
 const STATUS_STYLES = {
   draft: "bg-gray-100 text-gray-700",
@@ -15,6 +22,17 @@ const STATUS_STYLES = {
   completed: "bg-purple-100 text-purple-700",
   failed: "bg-red-100 text-red-700",
   cancelled: "bg-gray-100 text-gray-500",
+  confirmed: "bg-blue-50 text-blue-700",
+  preparing: "bg-amber-50 text-amber-700",
+  dispatched: "bg-purple-50 text-purple-700",
+  ready_for_collection: "bg-green-50 text-green-700",
+  refunded: "bg-red-50 text-red-700",
+};
+
+const FULFILMENT_ACTIONS = {
+  preparing: "Mark preparing",
+  dispatched: "Mark dispatched",
+  ready_for_collection: "Mark ready for collection",
 };
 
 function formatDate(value) {
@@ -36,18 +54,38 @@ function formatDate(value) {
 function formatStatus(status) {
   if (!status) return "Unknown";
 
-  return status.charAt(0).toUpperCase() + status.slice(1);
+  return status
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
-function StatCard({ label, value, description }) {
+function formatMoney(value) {
+  if (value === null || value === undefined) return "—";
+
+  return `KSh ${Number(value).toLocaleString("en-KE")}`;
+}
+
+function StatCard({ label, value, valueClass = "" }) {
   return (
-    <div className="rounded-2xl border border-line bg-white p-5">
+    <div className="min-w-0">
       <p className="text-sm text-muted">{label}</p>
-
-      <p className="mt-2 text-2xl font-bold text-forest">{value}</p>
-
-      {description && <p className="mt-1 text-xs text-muted">{description}</p>}
+      <p className={`mt-2 text-2xl font-bold ${valueClass || "text-forest"}`}>
+        {value}
+      </p>
     </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const style = STATUS_STYLES[status] || "bg-gray-100 text-gray-700";
+
+  return (
+    <span
+      className={`inline-flex w-fit whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${style}`}
+    >
+      {formatStatus(status)}
+    </span>
   );
 }
 
@@ -56,16 +94,28 @@ export default function AdminCampaignDetailPage() {
   const navigate = useNavigate();
 
   const [campaign, setCampaign] = useState(null);
+  const [orders, setOrders] = useState([]);
+
   const [loading, setLoading] = useState(true);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
   const [actionLoading, setActionLoading] = useState(false);
+  const [orderActionLoading, setOrderActionLoading] = useState("");
+
   const [error, setError] = useState("");
+  const [orderError, setOrderError] = useState("");
+
   const [message, setMessage] = useState(null);
   const [closeOutcome, setCloseOutcome] = useState(null);
 
-  async function loadCampaign() {
+  async function loadCampaign({ showLoading = true } = {}) {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
+
       setError("");
+      setOrderError("");
 
       const data = await getAdminCampaigns();
 
@@ -75,20 +125,36 @@ export default function AdminCampaignDetailPage() {
 
       if (!found) {
         setCampaign(null);
+        setOrders([]);
         setError("Campaign not found.");
         return;
       }
 
       setCampaign(found);
+      setOrdersLoading(true);
+
+      try {
+        const orderData = await getCampaignOrders(campaignId);
+        setOrders(Array.isArray(orderData) ? orderData : []);
+      } catch (err) {
+        setOrders([]);
+        setOrderError(err.message || "Unable to load campaign orders.");
+      } finally {
+        setOrdersLoading(false);
+      }
     } catch (err) {
       setError(err.message || "Unable to load campaign.");
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   }
 
   useEffect(() => {
     loadCampaign();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
 
   async function runAction(action, successMessage) {
@@ -111,7 +177,7 @@ export default function AdminCampaignDetailPage() {
         setCloseOutcome(result);
       }
 
-      await loadCampaign();
+      await loadCampaign({ showLoading: false });
     } catch (err) {
       setError(err.message || "The action could not be completed.");
     } finally {
@@ -155,6 +221,64 @@ export default function AdminCampaignDetailPage() {
     runAction(() => closeCampaign(campaignId));
   }
 
+  async function handleBulkOrderUpdate(status) {
+    const actionLabel = FULFILMENT_ACTIONS[status];
+
+    const confirmed = window.confirm(
+      `Are you sure you want to ${actionLabel.toLowerCase()} all eligible orders in this campaign?`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setOrderActionLoading(status);
+      setMessage(null);
+      setOrderError("");
+
+      const result = await updateCampaignOrdersStatus(campaignId, status);
+
+      setMessage({
+        type: "success",
+        text: `${actionLabel}: ${result.updated} orders updated and ${result.skipped} orders skipped.`,
+      });
+
+      await loadCampaign({ showLoading: false });
+    } catch (err) {
+      setOrderError(err.message || "Unable to update campaign orders.");
+    } finally {
+      setOrderActionLoading("");
+    }
+  }
+
+  async function handleIndividualOrderUpdate(order, status) {
+    const actionLabel = FULFILMENT_ACTIONS[status];
+
+    const confirmed = window.confirm(
+      `${actionLabel} for order ${order.order_no}?`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setOrderActionLoading(String(order.id));
+      setMessage(null);
+      setOrderError("");
+
+      await updateAdminOrderStatus(order.id, status);
+
+      setMessage({
+        type: "success",
+        text: `Order ${order.order_no} successfully updated to ${formatStatus(status)}.`,
+      });
+
+      await loadCampaign({ showLoading: false });
+    } catch (err) {
+      setOrderError(err.message || "Unable to update this order.");
+    } finally {
+      setOrderActionLoading("");
+    }
+  }
+
   if (loading) {
     return (
       <main className="admin-main">
@@ -191,8 +315,8 @@ export default function AdminCampaignDetailPage() {
   const minimumQuantity = Number(campaign.min_quantity || 0);
   const maximumQuantity = Number(campaign.max_quantity || 0);
 
-  const progress = minimumQuantity
-    ? Math.min(Math.round((orderedQuantity / minimumQuantity) * 100), 100)
+  const progress = maximumQuantity
+    ? Math.min(Math.round((orderedQuantity / maximumQuantity) * 100), 100)
     : 0;
 
   const minimumReached = orderedQuantity >= minimumQuantity;
@@ -209,212 +333,509 @@ export default function AdminCampaignDetailPage() {
 
   const canClose = campaign.status === "active";
 
+  const canFulfilOrders = ["successful", "fulfilling"].includes(
+    campaign.status,
+  );
+
   const product = campaign.product || {};
+
+  const liveOrders = orders.filter(
+    (order) => !["cancelled", "refunded"].includes(order.status),
+  );
+
+  const completedOrders = orders.filter(
+    (order) => order.status === "completed",
+  );
+
+  const paidRevenue = liveOrders.reduce(
+    (total, order) => total + Number(order.total_amount || 0),
+    0,
+  );
+
+  const orderCounts = orders.reduce((counts, order) => {
+    counts[order.status] = (counts[order.status] || 0) + 1;
+    return counts;
+  }, {});
+
+  // Use backend-provided next_statuses as the source of truth.
+  const availableBulkStatuses = canFulfilOrders
+    ? [
+        ...new Set(
+          orders.flatMap((order) =>
+            Array.isArray(order.next_statuses) ? order.next_statuses : [],
+          ),
+        ),
+      ].filter((status) => FULFILMENT_ACTIONS[status])
+    : [];
+
+  const hasDeliveryPreparing = orders.some(
+    (order) =>
+      order.fulfilment === "delivery" &&
+      order.status === "preparing" &&
+      order.next_statuses?.includes("dispatched"),
+  );
+
+  const hasCollectionPreparing = orders.some(
+    (order) =>
+      order.fulfilment === "collection" &&
+      order.status === "preparing" &&
+      order.next_statuses?.includes("ready_for_collection"),
+  );
+
+  const hasConfirmedOrders = orders.some(
+    (order) =>
+      order.status === "confirmed" &&
+      order.next_statuses?.includes("preparing"),
+  );
 
   return (
     <main className="admin-main min-w-0">
       <button
         type="button"
         onClick={() => navigate("/admin/campaigns")}
-        className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-forest hover:underline"
+        className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-forest hover:underline"
       >
         ← Back to campaigns
       </button>
 
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-forest sm:text-3xl">
-            Campaign details
-          </h1>
+      {/* Campaign heading */}
+      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          {product.image_url ? (
+            <img
+              src={product.image_url}
+              alt={product.name || "Campaign product"}
+              className="h-16 w-16 shrink-0 rounded-xl object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-3xl">
+              📦
+            </div>
+          )}
 
-          <p className="mt-2 text-sm text-muted">
-            Monitor campaign progress and manage its status.
-          </p>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted">
+              {product.name || "Campaign product"}
+              {product.unit ? ` · ${product.unit}` : ""}
+            </p>
+
+            <h1 className="mt-1 text-xl font-bold text-forest sm:text-2xl">
+              {campaign.title}
+            </h1>
+
+            <p className="mt-1 text-xs text-muted">
+              Campaign details and order monitoring
+            </p>
+          </div>
         </div>
 
-        <span
-          className={`inline-flex w-fit rounded-full px-4 py-2 text-sm font-semibold ${statusStyle}`}
-        >
-          {formatStatus(campaign.status)}
-        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span
+            className={`inline-flex w-fit rounded-full px-4 py-2 text-sm font-semibold ${statusStyle}`}
+          >
+            {formatStatus(campaign.status)}
+          </span>
+
+          <span className="text-xs text-muted">
+            {campaign.status === "active"
+              ? `Ends ${formatDate(campaign.deadline)}`
+              : campaign.closed_at
+                ? `Closed ${formatDate(campaign.closed_at)}`
+                : ""}
+          </span>
+        </div>
       </div>
 
       {error && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </div>
       )}
 
       {message && (
-        <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+        <div className="mb-5 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
           {message.text}
         </div>
       )}
 
+      {/* Campaign closing result */}
       {closeOutcome && (
-        <section className="mb-6 rounded-2xl border border-line bg-white p-6">
-          <h2 className="text-lg font-bold text-forest">
-            Campaign closing outcome
-          </h2>
+        <section className="mb-5 rounded-2xl border border-line bg-white p-5">
+          <h2 className="font-bold text-forest">Campaign closing outcome</h2>
 
           <p className="mt-2 text-sm text-muted">
             This campaign was closed as{" "}
             <strong>{formatStatus(closeOutcome.outcome)}</strong>.
           </p>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <StatCard
               label="Orders confirmed"
               value={closeOutcome.orders_confirmed ?? 0}
-              description="Orders retained after closing."
             />
 
             <StatCard
               label="Orders refunded"
               value={closeOutcome.orders_refunded ?? 0}
-              description="Orders refunded after closing."
             />
           </div>
         </section>
       )}
 
-      <section className="mb-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-2xl border border-line bg-white p-5 sm:p-6">
-          <div className="flex flex-col gap-5 sm:flex-row">
-            {product.image_url ? (
-              <img
-                src={product.image_url}
-                alt={product.name || "Campaign product"}
-                className="h-36 w-full rounded-xl object-cover sm:w-36"
-              />
-            ) : (
-              <div className="flex h-36 w-full items-center justify-center rounded-xl bg-gray-100 text-4xl sm:w-36">
-                📦
-              </div>
-            )}
+      {/* Campaign statistics and progress */}
+      <section className="mb-5 rounded-2xl border border-line bg-white p-5 sm:p-6">
+        <div className="grid grid-cols-2 gap-5 lg:grid-cols-4 lg:gap-6">
+          <StatCard
+            label="Progress"
+            value={`${orderedQuantity} / ${maximumQuantity || "—"}`}
+          />
 
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                Product
-              </p>
+          <StatCard
+            label="Minimum"
+            value={`${minimumQuantity} · ${minimumReached ? "Met" : "Not met"}`}
+            valueClass={minimumReached ? "text-green-700" : "text-amber-700"}
+          />
 
-              <h2 className="mt-2 text-xl font-bold text-forest">
-                {product.name || "Campaign product"}
-              </h2>
+          <StatCard label="Orders" value={liveOrders.length} />
 
-              <p className="mt-1 text-sm text-muted">
-                {product.unit || "Unit not specified"}
-              </p>
-
-              <h3 className="mt-5 font-semibold text-forest">
-                {campaign.title}
-              </h3>
-
-              <p className="mt-1 text-sm text-muted">
-                Seller information is not available in the campaign response.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
-            <div>
-              <p className="text-xs text-muted">Campaign deadline</p>
-
-              <p className="mt-1 text-sm font-semibold text-forest">
-                {formatDate(campaign.deadline)}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-xs text-muted">Closed at</p>
-
-              <p className="mt-1 text-sm font-semibold text-forest">
-                {formatDate(campaign.closed_at)}
-              </p>
-            </div>
-          </div>
+          <StatCard label="Revenue (paid)" value={formatMoney(paidRevenue)} />
         </div>
 
-        <div className="rounded-2xl border border-line bg-white p-5 sm:p-6">
-          <h2 className="font-bold text-forest">Campaign progress</h2>
+        <div className="mt-6">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-semibold text-forest">
+              Campaign progress
+            </span>
 
-          <p className="mt-2 text-sm text-muted">
-            Quantity ordered against the minimum required.
+            <span className="text-sm font-semibold text-forest">
+              {progress}%
+            </span>
+          </div>
+
+          <div className="h-3 overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-lime transition-all"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Orders and next action */}
+      <section className="mb-6 grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+        {/* Orders */}
+        <div className="min-w-0 rounded-2xl border border-line bg-white p-4 sm:p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-forest">Orders</h2>
+
+              <p className="mt-1 text-xs text-muted">
+                {orders.length} total order{orders.length === 1 ? "" : "s"}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => loadCampaign({ showLoading: false })}
+              disabled={ordersLoading || Boolean(orderActionLoading)}
+              className="rounded-lg border border-line px-3 py-2 text-xs font-semibold text-forest transition hover:bg-gray-50 disabled:opacity-50"
+            >
+              {ordersLoading ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+
+          {orderError && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {orderError}
+            </div>
+          )}
+
+          {ordersLoading && orders.length === 0 ? (
+            <div className="rounded-xl bg-gray-50 p-8 text-center">
+              <p className="text-sm text-muted">Loading campaign orders...</p>
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="rounded-xl bg-gray-50 p-8 text-center">
+              <p className="font-semibold text-forest">No orders yet</p>
+
+              <p className="mt-2 text-sm text-muted">
+                There are currently no orders recorded for this campaign.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-line text-xs text-muted">
+                    <th className="px-3 py-3 font-medium">Order</th>
+                    <th className="px-3 py-3 font-medium">Consumer</th>
+                    <th className="px-3 py-3 font-medium">Qty</th>
+                    <th className="px-3 py-3 font-medium">Fulfilment</th>
+                    <th className="px-3 py-3 font-medium">Amount</th>
+                    <th className="px-3 py-3 font-medium">Status</th>
+                    <th className="px-3 py-3 font-medium">Next action</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-line">
+                  {orders.map((order) => {
+                    const nextStatuses = Array.isArray(order.next_statuses)
+                      ? order.next_statuses.filter(
+                          (status) => FULFILMENT_ACTIONS[status],
+                        )
+                      : [];
+
+                    const isUpdating = orderActionLoading === String(order.id);
+
+                    const fulfilmentLabel =
+                      order.fulfilment === "delivery"
+                        ? "Delivery"
+                        : "Collection";
+
+                    const locationDetails =
+                      order.fulfilment === "delivery"
+                        ? order.delivery_address || order.location?.name || "—"
+                        : order.location?.collection_point ||
+                          order.location?.name ||
+                          "—";
+
+                    return (
+                      <tr key={order.id} className="align-top">
+                        <td className="px-3 py-4">
+                          <p className="font-semibold text-forest">
+                            {order.order_no || `#${order.id}`}
+                          </p>
+
+                          <p className="mt-1 text-xs text-muted">
+                            {formatDate(order.created_at)}
+                          </p>
+                        </td>
+
+                        <td className="px-3 py-4">
+                          <p className="font-medium text-forest">
+                            {order.consumer?.full_name || "—"}
+                          </p>
+
+                          <p className="mt-1 text-xs text-muted">
+                            {order.consumer?.phone || "—"}
+                          </p>
+                        </td>
+
+                        <td className="px-3 py-4 font-medium text-forest">
+                          {order.quantity ?? "—"}
+                        </td>
+
+                        <td className="max-w-[180px] px-3 py-4">
+                          <p className="font-medium text-forest">
+                            {fulfilmentLabel}
+                          </p>
+
+                          <p className="mt-1 whitespace-normal text-xs leading-relaxed text-muted">
+                            {locationDetails}
+                          </p>
+                        </td>
+
+                        <td className="whitespace-nowrap px-3 py-4 font-semibold text-forest">
+                          {formatMoney(order.total_amount)}
+                        </td>
+
+                        <td className="px-3 py-4">
+                          <StatusBadge status={order.status} />
+                        </td>
+
+                        <td className="px-3 py-4">
+                          {canFulfilOrders && nextStatuses.length > 0 ? (
+                            <div className="flex min-w-[150px] flex-col gap-2">
+                              {nextStatuses.map((status) => (
+                                <button
+                                  key={status}
+                                  type="button"
+                                  disabled={
+                                    Boolean(orderActionLoading) || actionLoading
+                                  }
+                                  onClick={() =>
+                                    handleIndividualOrderUpdate(order, status)
+                                  }
+                                  className="rounded-lg border border-line px-3 py-2 text-xs font-semibold text-forest transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {isUpdating
+                                    ? "Updating..."
+                                    : FULFILMENT_ACTIONS[status]}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted">
+                              No action available
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <p className="mt-4 text-xs leading-relaxed text-muted">
+            Cancelled and refunded orders remain visible for monitoring.
+            Completed orders are confirmed by shoppers and cannot be advanced by
+            the admin.
+          </p>
+        </div>
+
+        {/* Next action panel */}
+        <aside className="h-fit rounded-2xl border border-line bg-white p-5">
+          <h2 className="text-lg font-bold text-forest">Next action</h2>
+
+          <p className="mt-1 text-sm text-muted">
+            Actions available for this campaign.
           </p>
 
-          <div className="mt-6">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-semibold text-forest">
-                {orderedQuantity} / {minimumQuantity}
-              </span>
+          <div className="mt-5 flex flex-col gap-3">
+            {campaign.status === "draft" && (
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={handleActivate}
+                className="w-full rounded-xl bg-lime px-4 py-3 text-sm font-semibold text-forest transition hover:opacity-90 disabled:opacity-50"
+              >
+                Activate campaign
+              </button>
+            )}
 
-              <span className="text-sm font-semibold text-forest">
-                {progress}%
-              </span>
-            </div>
+            {campaign.status === "active" && (
+              <>
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={handleClose}
+                  className="w-full rounded-xl bg-forest px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                >
+                  Close campaign now
+                </button>
 
-            <div className="h-3 overflow-hidden rounded-full bg-gray-100">
-              <div
-                className="h-full rounded-full bg-lime transition-all"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+                <p className="text-xs leading-relaxed text-muted">
+                  If the minimum quantity is reached, the campaign will close
+                  successfully. Otherwise, it will fail and eligible orders will
+                  be refunded.
+                </p>
+              </>
+            )}
+
+            {canFulfilOrders && (
+              <>
+                <div className="rounded-xl bg-gray-50 p-3">
+                  <p className="text-sm font-semibold text-forest">
+                    Order fulfilment
+                  </p>
+
+                  <p className="mt-1 text-xs leading-relaxed text-muted">
+                    Bulk actions update all eligible orders that have the
+                    selected status as their next allowed step.
+                  </p>
+                </div>
+
+                {availableBulkStatuses.length > 0 ? (
+                  availableBulkStatuses.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      disabled={Boolean(orderActionLoading) || actionLoading}
+                      onClick={() => handleBulkOrderUpdate(status)}
+                      className="w-full rounded-xl bg-forest px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {orderActionLoading === status
+                        ? "Updating..."
+                        : FULFILMENT_ACTIONS[status]}
+                    </button>
+                  ))
+                ) : (
+                  <p className="rounded-xl bg-gray-50 p-3 text-sm text-muted">
+                    No fulfilment actions are currently available.
+                  </p>
+                )}
+
+                {hasConfirmedOrders && (
+                  <p className="text-xs text-muted">
+                    {orderCounts.confirmed || 0} confirmed order
+                    {orderCounts.confirmed === 1 ? "" : "s"} awaiting
+                    preparation.
+                  </p>
+                )}
+
+                {hasDeliveryPreparing && (
+                  <p className="text-xs text-muted">
+                    Delivery orders are awaiting dispatch.
+                  </p>
+                )}
+
+                {hasCollectionPreparing && (
+                  <p className="text-xs text-muted">
+                    Collection orders are awaiting collection readiness.
+                  </p>
+                )}
+              </>
+            )}
+
+            {!canFulfilOrders &&
+              campaign.status !== "draft" &&
+              campaign.status !== "active" && (
+                <p className="rounded-xl bg-gray-50 p-3 text-sm text-muted">
+                  No fulfilment action is available for this campaign status.
+                </p>
+              )}
+
+            {actionLoading && (
+              <p className="text-center text-xs text-muted">Processing...</p>
+            )}
           </div>
 
-          <div
-            className={`mt-5 rounded-xl p-4 text-sm ${
-              minimumReached
-                ? "bg-green-50 text-green-700"
-                : "bg-amber-50 text-amber-700"
-            }`}
-          >
-            {minimumReached
-              ? "The minimum quantity has been reached."
-              : `The campaign needs ${
-                  minimumQuantity - orderedQuantity
-                } more units to reach its minimum.`}
-          </div>
-        </div>
+          {/* Order status counts */}
+          {orders.length > 0 && (
+            <div className="mt-6 border-t border-line pt-5">
+              <h3 className="text-sm font-semibold text-forest">
+                Order status
+              </h3>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {Object.entries(orderCounts).map(([status, count]) => (
+                  <span
+                    key={status}
+                    className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700"
+                  >
+                    {formatStatus(status)}: {count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {campaign.status === "failed" && (
+            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              The minimum quantity was not reached. Eligible orders were
+              refunded automatically.
+            </div>
+          )}
+
+          {campaign.status === "completed" && (
+            <div className="mt-5 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+              This campaign's transaction has been completed.
+            </div>
+          )}
+        </aside>
       </section>
 
-      <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Ordered quantity"
-          value={orderedQuantity}
-          description="Total quantity ordered."
-        />
-
-        <StatCard
-          label="Minimum quantity"
-          value={minimumQuantity}
-          description="Required for success."
-        />
-
-        <StatCard
-          label="Maximum quantity"
-          value={maximumQuantity}
-          description="Campaign order limit."
-        />
-
-        <StatCard
-          label="Campaign price"
-          value={
-            campaign.campaign_price != null
-              ? `KSh ${Number(campaign.campaign_price).toLocaleString()}`
-              : "—"
-          }
-          description="Price copied from the approved product."
-        />
-      </section>
-
+      {/* Campaign management */}
       <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
         <h2 className="text-lg font-bold text-forest">Campaign management</h2>
 
         <p className="mt-2 text-sm text-muted">
-          Available actions depend on the current campaign status.
+          Available management actions depend on the campaign status.
         </p>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {canEdit && (
             <button
               type="button"
@@ -426,17 +847,6 @@ export default function AdminCampaignDetailPage() {
             </button>
           )}
 
-          {canActivate && (
-            <button
-              type="button"
-              disabled={actionLoading}
-              onClick={handleActivate}
-              className="rounded-xl bg-forest px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-            >
-              Activate campaign
-            </button>
-          )}
-
           {canCancel && (
             <button
               type="button"
@@ -445,17 +855,6 @@ export default function AdminCampaignDetailPage() {
               className="rounded-xl border border-red-200 px-5 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
             >
               Cancel campaign
-            </button>
-          )}
-
-          {canClose && (
-            <button
-              type="button"
-              disabled={actionLoading}
-              onClick={handleClose}
-              className="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
-            >
-              Close campaign now
             </button>
           )}
 

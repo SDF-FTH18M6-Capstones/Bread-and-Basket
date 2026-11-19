@@ -15,15 +15,41 @@ export const NAV_LINKS = {
   ],
 
   admin: [
-    { label: "Dashboard", enabled: false },
-    { to: "/admin", label: "Approvals", enabled: true },
-    { to: "/admin/campaigns", label: "Campaigns", enabled: true },
-    { label: "Orders & payments", enabled: false },
-    { label: "Notifications", enabled: false },
+    {
+      label: "Dashboard",
+      desktopLabel: "Dashboard",
+      mobileLabel: "Dashboard",
+      enabled: false,
+    },
+    {
+      to: "/admin",
+      label: "Approvals",
+      desktopLabel: "Approvals",
+      mobileLabel: "Approvals",
+      enabled: true,
+    },
+    {
+      to: "/admin/campaigns",
+      label: "Campaigns",
+      desktopLabel: "Campaigns",
+      mobileLabel: "Campaigns",
+      enabled: true,
+    },
+    {
+      label: "Payments",
+      desktopLabel: "Orders & payments",
+      mobileLabel: "Payments",
+      enabled: false,
+    },
+    {
+      label: "Alerts",
+      desktopLabel: "Notifications",
+      mobileLabel: "Alerts",
+      enabled: false,
+    },
   ],
 };
 
-// Other names the backend might use for the same role.
 const ROLE_ALIASES = {
   buyer: "consumer",
   customer: "consumer",
