@@ -6,6 +6,7 @@ import ShopHome from "../features/shop/ShopHome";
 import CampaignDetailPage from "../features/shop/CampaignDetailPage";
 
 import SellerHome from "../features/seller/SellerHome";
+import SellerCampaigns from "../features/seller/SellerCampaigns";
 
 import AdminHome from "../features/admin/AdminHome";
 
@@ -34,6 +35,7 @@ export default function AppRoutes() {
 
         <Route element={<ProtectedRoute allowedRoles={["seller"]} />}>
           <Route path="/seller" element={<SellerHome />} />
+          <Route path="/seller/campaigns" element={<SellerCampaigns />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
