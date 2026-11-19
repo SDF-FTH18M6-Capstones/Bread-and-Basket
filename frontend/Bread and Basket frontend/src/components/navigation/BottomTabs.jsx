@@ -6,7 +6,7 @@ import "./Navigation.css";
 
 export default function BottomTabs() {
   const { user } = useContext(AuthContext) ?? {};
-  const links = getLinksForRole(user?.role);
+  const links = getLinksForRole(user?.role) ?? [];
 
   if (user?.role === "admin") {
     return (
