@@ -21,7 +21,7 @@ export default function BottomTabs() {
                 `admin-bottom-tabs__tab${isActive ? " is-active" : ""}`
               }
             >
-              {link.label}
+              {link.mobileLabel ?? link.label}
             </NavLink>
           ) : (
             <span
@@ -29,7 +29,7 @@ export default function BottomTabs() {
               className="admin-bottom-tabs__tab admin-bottom-tabs__tab--disabled"
               aria-disabled="true"
             >
-              {link.label}
+              {link.mobileLabel ?? link.label}
             </span>
           ),
         )}
@@ -51,6 +51,7 @@ export default function BottomTabs() {
           <span className="bottom-tabs__icon" aria-hidden="true">
             {link.icon}
           </span>
+
           <span className="bottom-tabs__label">{link.label}</span>
         </NavLink>
       ))}
