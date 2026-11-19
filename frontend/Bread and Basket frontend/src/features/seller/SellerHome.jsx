@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import {
   getSellerProducts,
@@ -547,6 +548,7 @@ function VerificationMessage({ status, rejectionReason }) {
 
 export default function SellerHome() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -656,16 +658,26 @@ export default function SellerHome() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setSubmitError("");
-            setShowModal(true);
-          }}
-          className="inline-flex w-full items-center justify-center rounded-xl bg-lime px-6 py-3.5 text-sm font-bold text-forest transition hover:bg-lime/80 sm:w-auto"
-        >
-          Add product
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => navigate("/seller/campaigns")}
+            className="rounded-xl border border-line bg-white px-6 py-3.5 text-sm font-bold text-forest transition hover:bg-grey-soft"
+          >
+            Campaign Orders
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSubmitError("");
+              setShowModal(true);
+            }}
+            className="inline-flex w-full items-center justify-center rounded-xl bg-lime px-6 py-3.5 text-sm font-bold text-forest transition hover:bg-lime/80 sm:w-auto"
+          >
+            Add product
+          </button>
+        </div>
       </div>
 
       {submitSuccess && (
