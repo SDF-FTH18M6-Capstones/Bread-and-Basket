@@ -1,3 +1,4 @@
+
 export const NAV_LINKS = {
   consumer: [
     { to: "/shop", label: "Shop" },
@@ -6,7 +7,12 @@ export const NAV_LINKS = {
     { to: "/profile", label: "Profile" },
   ],
 
-  seller: [{ to: "/seller", label: "Products" }],
+  seller: [
+    { to: "/seller", label: "Dashboard" },
+    { to: "/seller/products", label: "Products" },
+    { to: "/seller/campaigns", label: "Campaign Orders" },
+    { to: "/seller/payouts", label: "Payouts" },
+  ],
 
   admin: [
     { to: "/admin", label: "Dashboard" },

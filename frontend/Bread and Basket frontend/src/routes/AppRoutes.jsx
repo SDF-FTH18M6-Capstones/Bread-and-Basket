@@ -2,16 +2,17 @@ import { Routes, Route } from "react-router-dom";
 import Layout from "../Layout";
 
 import LandingPage from "../features/landing/LandingPage";
+
 import ShopHome from "../features/shop/ShopHome";
 import CampaignDetailPage from "../features/shop/CampaignDetailPage";
+import OrdersPage from "../features/orders/ordersPage";
+import OrderDetailPage from "../features/orders/ordersDetailPage";
 
+import SellerDashboard from "../features/seller/SellerDashboard";
 import SellerHome from "../features/seller/SellerHome";
 import SellerCampaigns from "../features/seller/SellerCampaigns";
 
 import AdminHome from "../features/admin/AdminHome";
-
-import OrdersPage from "../features/orders/ordersPage";
-import OrderDetailPage from "../features/orders/ordersDetailPage";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -21,6 +22,7 @@ export default function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
 
       <Route element={<Layout />}>
+        {/* Consumer Routes */}
         <Route element={<ProtectedRoute allowedRoles={["consumer"]} />}>
           <Route path="/shop" element={<ShopHome />} />
 
@@ -30,14 +32,20 @@ export default function AppRoutes() {
           />
 
           <Route path="/orders" element={<OrdersPage />} />
+
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
         </Route>
 
+        {/* Seller Routes */}
         <Route element={<ProtectedRoute allowedRoles={["seller"]} />}>
-          <Route path="/seller" element={<SellerHome />} />
+          <Route path="/seller" element={<SellerDashboard />} />
+
+          <Route path="/seller/products" element={<SellerHome />} />
+
           <Route path="/seller/campaigns" element={<SellerCampaigns />} />
         </Route>
 
+        {/* Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
           <Route path="/admin" element={<AdminHome />} />
         </Route>
