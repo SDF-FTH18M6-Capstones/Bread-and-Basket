@@ -178,6 +178,17 @@ class OrderService:
 
         order.status = OrderStatus.COMPLETED
 
+        campaign = db.session.scalar(
+            select(Campaign).where(Campaign.id == order.campaign_id)
+        )
+
+        if campaign is None or campaign.status == CampaignStatus.DRAFT:
+            raise NotFound("Campaign not Found.")
+
+        if campaign.status == CampaignStatus.FULFILLING:
+            if all(o.status == OrderStatus.COMPLETED for o in campaign.active_orders):
+                campaign.status = CampaignStatus.COMPLETED
+
         add_history(
             order.id,
             OrderStatus.COMPLETED,
