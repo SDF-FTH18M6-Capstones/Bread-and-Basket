@@ -9,9 +9,15 @@ from ..schemas.admin_campaigns import (
     CampaignUpdateSchema,
     CampaignCloseResultSchema,
 )
+from ..schemas.admin_orders import (
+    StatusUpdateSchema,
+    AdminOrderSchema,
+    BatchStatusResultSchema,
+)
 from ..schemas.product import AdminProductSchema
 from ..services.approval_service import ApprovalService
 from ..services.admin_campaign_service import AdminCampaignService
+from ..services.admin_orders import FulfilmentService
 from flask_jwt_extended import current_user
 from ..models.enums import UserRole
 
@@ -134,3 +140,36 @@ class CampaignClose(MethodView):
     @blp.doc(security=[{"bearerAuth": []}])
     def post(self, campaign_id):
         return AdminCampaignService().close(campaign_id=campaign_id, admin=current_user)
+
+
+@blp.route("/admin/campaigns/<int:campaign_id>/orders")
+class AdminOrders(MethodView):
+    @role_required(UserRole.ADMIN)
+    @blp.response(200, AdminOrderSchema(many=True))
+    @blp.doc(security=[{"bearerAuth": []}])
+    def get(self, campaign_id):
+        return FulfilmentService().list_campaign_orders(campaign_id=campaign_id)
+
+
+@blp.route("/admin/orders/<int:order_id>/status")
+class AdminUpdateOrderStatus(MethodView):
+    @role_required(UserRole.ADMIN)
+    @blp.arguments(StatusUpdateSchema)
+    @blp.response(200, AdminOrderSchema)
+    @blp.doc(security=[{"bearerAuth": []}])
+    def post(self, data, order_id):
+        return FulfilmentService().update_order_status(
+            order_id=order_id, data=data, admin=current_user
+        )
+
+
+@blp.route("/admin/campaigns/<int:campaign_id>/orders/status")
+class AdminCampaignOrdersStatusUpdate(MethodView):
+    @role_required(UserRole.ADMIN)
+    @blp.arguments(StatusUpdateSchema)
+    @blp.response(200, BatchStatusResultSchema)
+    @blp.doc(security=[{"bearerAuth": []}])
+    def post(self, data, campaign_id):
+        return FulfilmentService().batch_update(
+            campaign_id=campaign_id, data=data, admin=current_user
+        )

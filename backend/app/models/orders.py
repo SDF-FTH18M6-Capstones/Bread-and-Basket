@@ -77,3 +77,17 @@ class Order(BaseModel):
             self.status in (OrderStatus.PAID, OrderStatus.CONFIRMED)
             and datetime.now(timezone.utc) <= self.cancellation_cutoff
         )
+
+    @property
+    def next_statuses(self):
+        if self.status == OrderStatus.CONFIRMED:
+            return [OrderStatus.PREPARING]
+
+        if self.status == OrderStatus.PREPARING:
+            return (
+                [OrderStatus.READY_FOR_COLLECTION]
+                if self.fulfilment == FulfilmentType.COLLECTION
+                else [OrderStatus.DISPATCHED]
+            )
+
+        return []
