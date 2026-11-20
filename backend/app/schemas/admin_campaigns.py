@@ -15,12 +15,13 @@ class AdminCampaignSchema(CampaignSummarySchema):
     cancellation_cutoff = fields.DateTime()
     closed_at = fields.DateTime()
     created_at = fields.DateTime()
+    stock_confirmed_at = fields.DateTime()
 
 
 class CampaignCreateSchema(Schema):
     product_id = fields.Int(required=True, validate=validate.Range(min=1))
     title = fields.Str(required=True, validate=validate.Length(min=3, max=150))
-    platform_charge = fields.Int(load_default=10)
+    platform_charge = fields.Int(load_default=10, validate=validate.Range(min=0))
     max_quantity = fields.Int(required=True, validate=validate.Range(min=1))
     min_order_quantity = fields.Int(load_default=1, validate=validate.Range(min=1))
     min_quantity = fields.Int(required=True, validate=validate.Range(min=1))
