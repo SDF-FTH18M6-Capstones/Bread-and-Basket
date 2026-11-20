@@ -10,6 +10,7 @@ import AdminHome from "../features/admin/AdminHome";
 import AdminCampaignsPage from "../features/admin/AdminCampaignsPage";
 import AdminCampaignDetailPage from "../features/admin/AdminCampaignDetailPage";
 import AdminCampaignFormPage from "../features/admin/AdminCampaignFormPage";
+import AdminOrdersPaymentsPage from "../features/admin/AdminOrdersPaymentsPage";
 
 import OrdersPage from "../features/orders/ordersPage";
 import OrderDetailPage from "../features/orders/ordersDetailPage";
@@ -60,6 +61,7 @@ export default function AppRoutes() {
             path="/admin/campaigns/:campaignId"
             element={<AdminCampaignDetailPage />}
           />
+          <Route path="/admin/orders" element={<AdminOrdersPaymentsPage />} />
         </Route>
       </Route>
     </Routes>

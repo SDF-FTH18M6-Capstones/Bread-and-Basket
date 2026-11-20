@@ -1,4 +1,3 @@
-
 export const NAV_LINKS = {
   consumer: [
     { to: "/shop", label: "Shop" },
@@ -36,10 +35,11 @@ export const NAV_LINKS = {
       enabled: true,
     },
     {
+      to: "/admin/orders",
       label: "Payments",
       desktopLabel: "Orders & payments",
       mobileLabel: "Payments",
-      enabled: false,
+      enabled: true,
     },
     {
       label: "Alerts",
