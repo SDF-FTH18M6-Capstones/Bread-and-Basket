@@ -61,7 +61,9 @@ function formatStatus(status) {
 }
 
 function formatMoney(value) {
-  if (value === null || value === undefined) return "—";
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "—";
+  }
 
   return `KSh ${Number(value).toLocaleString("en-KE")}`;
 }
@@ -83,6 +85,67 @@ function StatusBadge({ status }) {
   return (
     <span
       className={`inline-flex w-fit whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${style}`}
+    >
+      {formatStatus(status)}
+    </span>
+  );
+}
+
+/*
+ * Payment and refund helpers.
+ *
+ * Prefer the real backend payment/refund objects.
+ * Fall back to the current mock order data during development.
+ */
+
+function getPaymentStatus(order) {
+  if (order.payment?.status) {
+    return order.payment.status;
+  }
+
+  if (order.status === "cancelled" || order.status === "refunded") {
+    return "refunded";
+  }
+
+  return "successful";
+}
+
+function getPaidAmount(order) {
+  if (order.payment?.amount !== undefined && order.payment?.amount !== null) {
+    return Number(order.payment.amount) || 0;
+  }
+
+  return Number(order.total_amount || 0);
+}
+
+function getRefundAmount(order) {
+  if (order.refund?.amount !== undefined && order.refund?.amount !== null) {
+    return Number(order.refund.amount) || 0;
+  }
+
+  // Development fallback for the current mock data.
+  if (["cancelled", "refunded"].includes(order.status)) {
+    return Number(order.total_amount || 0);
+  }
+
+  return 0;
+}
+
+function PaymentBadge({ status }) {
+  const styles = {
+    successful: "bg-green-50 text-green-700",
+    succeeded: "bg-green-50 text-green-700",
+    paid: "bg-green-50 text-green-700",
+    pending: "bg-amber-50 text-amber-700",
+    failed: "bg-red-50 text-red-700",
+    refunded: "bg-red-50 text-red-700",
+  };
+
+  const style = styles[status] || "bg-gray-100 text-gray-700";
+
+  return (
+    <span
+      className={`inline-flex w-fit whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${style}`}
     >
       {formatStatus(status)}
     </span>
@@ -339,16 +402,28 @@ export default function AdminCampaignDetailPage() {
 
   const product = campaign.product || {};
 
-  const liveOrders = orders.filter(
-    (order) => !["cancelled", "refunded"].includes(order.status),
+  // Campaign order and financial summaries.
+  const totalOrders = orders.length;
+
+  const totalUnits = orders.reduce(
+    (total, order) => total + Number(order.quantity || 0),
+    0,
   );
 
-  const completedOrders = orders.filter(
-    (order) => order.status === "completed",
-  );
+  const totalPaid = orders.reduce((total, order) => {
+    const paymentStatus = getPaymentStatus(order);
 
-  const paidRevenue = liveOrders.reduce(
-    (total, order) => total + Number(order.total_amount || 0),
+    if (
+      ["successful", "succeeded", "paid", "refunded"].includes(paymentStatus)
+    ) {
+      return total + getPaidAmount(order);
+    }
+
+    return total;
+  }, 0);
+
+  const totalRefunds = orders.reduce(
+    (total, order) => total + getRefundAmount(order),
     0,
   );
 
@@ -485,23 +560,24 @@ export default function AdminCampaignDetailPage() {
       {/* Campaign statistics and progress */}
       <section className="mb-5 rounded-2xl border border-line bg-white p-5 sm:p-6">
         <div className="grid grid-cols-2 gap-5 lg:grid-cols-4 lg:gap-6">
+          <StatCard label="Total orders" value={totalOrders} />
+
+          <StatCard label="Total units" value={totalUnits} />
+
           <StatCard
-            label="Progress"
-            value={`${orderedQuantity} / ${maximumQuantity || "—"}`}
+            label="Total paid"
+            value={formatMoney(totalPaid)}
+            valueClass="text-green-700"
           />
 
           <StatCard
-            label="Minimum"
-            value={`${minimumQuantity} · ${minimumReached ? "Met" : "Not met"}`}
-            valueClass={minimumReached ? "text-green-700" : "text-amber-700"}
+            label="Total refunds"
+            value={formatMoney(totalRefunds)}
+            valueClass="text-red-600"
           />
-
-          <StatCard label="Orders" value={liveOrders.length} />
-
-          <StatCard label="Revenue (paid)" value={formatMoney(paidRevenue)} />
         </div>
 
-        <div className="mt-6">
+        <div className="mt-6 border-t border-line pt-5">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-semibold text-forest">
               Campaign progress
@@ -517,6 +593,29 @@ export default function AdminCampaignDetailPage() {
               className="h-full rounded-full bg-lime transition-all"
               style={{ width: `${progress}%` }}
             />
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
+            <span>
+              Ordered:{" "}
+              <strong className="text-forest">{orderedQuantity}</strong>
+            </span>
+
+            <span>
+              Minimum:{" "}
+              <strong className="text-forest">{minimumQuantity}</strong>
+            </span>
+
+            <span>
+              Maximum:{" "}
+              <strong className="text-forest">{maximumQuantity || "—"}</strong>
+            </span>
+
+            <span
+              className={minimumReached ? "font-semibold text-green-700" : ""}
+            >
+              Minimum {minimumReached ? "reached" : "not reached"}
+            </span>
           </div>
         </div>
       </section>
@@ -564,15 +663,16 @@ export default function AdminCampaignDetailPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+              <table className="w-full min-w-[1000px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-line text-xs text-muted">
                     <th className="px-3 py-3 font-medium">Order</th>
                     <th className="px-3 py-3 font-medium">Consumer</th>
                     <th className="px-3 py-3 font-medium">Qty</th>
                     <th className="px-3 py-3 font-medium">Fulfilment</th>
-                    <th className="px-3 py-3 font-medium">Amount</th>
-                    <th className="px-3 py-3 font-medium">Status</th>
+                    <th className="px-3 py-3 font-medium">Amount paid</th>
+                    <th className="px-3 py-3 font-medium">Payment / refund</th>
+                    <th className="px-3 py-3 font-medium">Order status</th>
                     <th className="px-3 py-3 font-medium">Next action</th>
                   </tr>
                 </thead>
@@ -598,6 +698,10 @@ export default function AdminCampaignDetailPage() {
                         : order.location?.collection_point ||
                           order.location?.name ||
                           "—";
+
+                    const paymentStatus = getPaymentStatus(order);
+                    const paidAmount = getPaidAmount(order);
+                    const refundAmount = getRefundAmount(order);
 
                     return (
                       <tr key={order.id} className="align-top">
@@ -635,8 +739,32 @@ export default function AdminCampaignDetailPage() {
                           </p>
                         </td>
 
-                        <td className="whitespace-nowrap px-3 py-4 font-semibold text-forest">
-                          {formatMoney(order.total_amount)}
+                        <td className="whitespace-nowrap px-3 py-4">
+                          <p className="font-semibold text-forest">
+                            {formatMoney(paidAmount)}
+                          </p>
+
+                          {order.payment?.reference && (
+                            <p className="mt-1 text-xs text-muted">
+                              Ref: {order.payment.reference}
+                            </p>
+                          )}
+                        </td>
+
+                        <td className="px-3 py-4">
+                          <PaymentBadge status={paymentStatus} />
+
+                          {refundAmount > 0 && (
+                            <p className="mt-2 whitespace-nowrap text-xs font-semibold text-red-600">
+                              Refunded: {formatMoney(refundAmount)}
+                            </p>
+                          )}
+
+                          {order.refund?.processed_at && (
+                            <p className="mt-1 whitespace-nowrap text-xs text-muted">
+                              {formatDate(order.refund.processed_at)}
+                            </p>
+                          )}
                         </td>
 
                         <td className="px-3 py-4">
@@ -748,7 +876,7 @@ export default function AdminCampaignDetailPage() {
                     >
                       {orderActionLoading === status
                         ? "Updating..."
-                        : FULFILMENT_ACTIONS[status]}
+                        : `Move all to ${formatStatus(status)}`}
                     </button>
                   ))
                 ) : (
