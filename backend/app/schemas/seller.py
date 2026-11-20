@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, validate
+from marshmallow import Schema, fields, validate, validates_schema, ValidationError
 from .campaigns import CampaignSummarySchema
 
 
@@ -27,6 +27,13 @@ class ProductCreateSchema(Schema):
     wholesale_price = fields.Int(required=True, validate=validate.Range(min=1))
     retail_price = fields.Int(required=True, validate=validate.Range(min=1))
     stock_quantity = fields.Int(required=True, validate=validate.Range(min=0))
+
+
+class ProductUpdateSchema(ProductCreateSchema):
+    @validates_schema
+    def not_empty(self, data, **kwargs):
+        if not data:
+            raise ValidationError("Send at least one field to change")
 
 
 class SellerCampaignSchema(CampaignSummarySchema):

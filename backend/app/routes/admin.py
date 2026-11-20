@@ -14,10 +14,17 @@ from ..schemas.admin_orders import (
     AdminOrderSchema,
     BatchStatusResultSchema,
 )
+from ..schemas.location import (
+    AdminLocationSchema,
+    LocationCreateSchema,
+    LocationUpdateSchema,
+    LocationSchema,
+)
 from ..schemas.product import AdminProductSchema
 from ..services.approval_service import ApprovalService
 from ..services.admin_campaign_service import AdminCampaignService
 from ..services.admin_orders import FulfilmentService
+from ..services.admin_location_service import AdminLocationService
 from flask_jwt_extended import current_user
 from ..models.enums import UserRole
 
@@ -173,3 +180,29 @@ class AdminCampaignOrdersStatusUpdate(MethodView):
         return FulfilmentService().batch_update(
             campaign_id=campaign_id, data=data, admin=current_user
         )
+
+
+@blp.route("/admin/locations")
+class AdminLocation(MethodView):
+    @role_required(UserRole.ADMIN)
+    @blp.response(200, AdminLocationSchema(many=True))
+    @blp.doc(security=[{"bearerAuth": []}])
+    def get(self):
+        return AdminLocationService().list_all()
+
+    @role_required(UserRole.ADMIN)
+    @blp.arguments(LocationCreateSchema)
+    @blp.response(201, AdminLocationSchema)
+    @blp.doc(security=[{"bearerAuth": []}])
+    def post(self, data):
+        return AdminLocationService().create(data=data)
+
+
+@blp.route("/admin/locations/<int:location_id>")
+class AdminUpdateLocation(MethodView):
+    @role_required(UserRole.ADMIN)
+    @blp.arguments(LocationUpdateSchema(partial=True))
+    @blp.response(200, AdminLocationSchema)
+    @blp.doc(security=[{"bearerAuth": []}])
+    def patch(self, data, location_id):
+        return AdminLocationService().update(location_id=location_id, data=data)

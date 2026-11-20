@@ -107,6 +107,31 @@ class SellerService:
 
         return product
 
+    def update_product(self, product_id, data, user):
+        product = db.session.get(Product, product_id)
+
+        if product is None or product.seller_id != self._profile(user).id:
+            raise NotFound("Product not found")
+
+        if product.approval_status == ApprovalStatus.APPROVED:
+            raise BusinessRuleError(
+                "Approved products can't be edited", code="PRODUCT_NOT_EDITABLE"
+            )
+
+        for key, value in data.items():
+            setattr(product, key, value)
+
+        if product.retail_price <= product.wholesale_price:
+            raise BusinessRuleError(
+                "Retail should be above wholesale", code="RETAIL_NOT_ABOVE_WHOLESALE"
+            )
+
+        product.approval_status = ApprovalStatus.PENDING
+        product.rejection_reason = None
+        db.session.commit()
+
+        return product
+
     def list_campaigns(self, user):
         profile = self._profile(user)
 
