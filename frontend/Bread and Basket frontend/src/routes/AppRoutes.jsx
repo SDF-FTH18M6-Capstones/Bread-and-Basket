@@ -6,6 +6,7 @@ import LandingPage from "../features/landing/LandingPage";
 import ShopHome from "../features/shop/ShopHome";
 import CampaignDetailPage from "../features/shop/CampaignDetailPage";
 
+import AdminDashboardPage from "../features/admin/AdminDashboardPage";
 import AdminHome from "../features/admin/AdminHome";
 import AdminCampaignsPage from "../features/admin/AdminCampaignsPage";
 import AdminCampaignDetailPage from "../features/admin/AdminCampaignDetailPage";
@@ -47,7 +48,8 @@ export default function AppRoutes() {
 
         {/* Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-          <Route path="/admin" element={<AdminHome />} />
+          <Route path="/admin" element={<AdminDashboardPage />} />
+          <Route path="/admin/approvals" element={<AdminHome />} />
           <Route path="/admin/campaigns" element={<AdminCampaignsPage />} />
           <Route
             path="/admin/campaigns/new"
