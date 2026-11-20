@@ -15,13 +15,14 @@ export const NAV_LINKS = {
 
   admin: [
     {
+      to: "/admin",
       label: "Dashboard",
       desktopLabel: "Dashboard",
       mobileLabel: "Dashboard",
-      enabled: false,
+      enabled: true,
     },
     {
-      to: "/admin",
+      to: "/admin/approvals",
       label: "Approvals",
       desktopLabel: "Approvals",
       mobileLabel: "Approvals",
