@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { listCampaigns } from "../../api/campaigns";
 import CampaignCard from "./CampaignCard";
-import CategoryChips from "../../components/ui/CateoryChips";
+import CategoryChips from "../../components/ui/CategoryChips";
 
 const FILTERS = [
   { label: "Ending soon", value: "ending_soon" },

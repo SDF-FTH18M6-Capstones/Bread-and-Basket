@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { AuthContext } from "../../features/auth/authContext";
 import { request } from "../../api/client";
-import CategoryChips from "../../components/ui/CateoryChips";
+import CategoryChips from "../../components/ui/CategoryChips";
 import CampaignRail from "../../components/ui/CampaignRail";
 import { ORDER_STATUS, IN_PROGRESS, CAN_CONFIRM } from "../../lib/orderStatus";
 import { productImage } from "../../lib/productImages";

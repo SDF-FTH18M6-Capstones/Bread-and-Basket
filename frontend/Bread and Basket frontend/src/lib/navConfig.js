@@ -23,10 +23,10 @@ export const NAV_LINKS = {
   ],
 
   seller: [
-    { to: "/seller", label: "Dashboard", icon: ChartColumn },
+    { to: "/seller", label: "Dashboard", icon: ChartColumn, end: true },
     { to: "/seller/products", label: "Products", icon: Package },
     { to: "/seller/campaigns", label: "Orders", icon: Truck },
-    { to: "/seller/payouts", label: "Payouts", icon: Wallet },
+    { to: "/seller/payouts", label: "Earnings", icon: Wallet },
     { to: "/seller/profile", label: "Profile", icon: User },
   ],
 
@@ -38,6 +38,7 @@ export const NAV_LINKS = {
       mobileLabel: "Dashboard",
       enabled: true,
       icon: ChartColumn,
+      end: true,
     },
     {
       to: "/admin/approvals",

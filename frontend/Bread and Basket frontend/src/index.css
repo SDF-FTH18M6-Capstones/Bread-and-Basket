@@ -27,3 +27,16 @@ body {
   font-size: 15px;
   line-height: 1.45;
 }
+
+.admin-main {
+  width: 100%;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: 20px 16px 48px;
+}
+
+@media (min-width: 768px) {
+  .admin-main {
+    padding-inline: 32px;
+  }
+}
