@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4010/api";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export class ApiError extends Error {
   constructor(message, status = 0, fieldErrors = {}, code = null) {
@@ -82,9 +82,5 @@ export async function request(path, { method = "GET", body, signal } = {}) {
 export function assetUrl(path) {
   if (!path) return null;
 
-  if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
-  }
-
-  return new URL(path, new URL(BASE_URL).origin).toString();
+  return path;
 }

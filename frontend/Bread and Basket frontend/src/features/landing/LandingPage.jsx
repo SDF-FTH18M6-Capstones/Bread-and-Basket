@@ -1,18 +1,24 @@
-
 import { useEffect, useState } from "react";
 import AuthModal from "../auth/AuthModal";
 import { assetUrl } from "../../api/client";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4010";
 
+const IMG = "/images/products";
+
 const categories = [
-  { value: "vegetables", label: "Vegetables", icon: "🥬" },
-  { value: "fruits", label: "Fruits", icon: "🍊" },
-  { value: "rice_grains", label: "Rice & Grains", icon: "🍚" },
-  { value: "flour", label: "Flour", icon: "🌾" },
-  { value: "cooking_oil", label: "Cooking Oil", icon: "🫒" },
-  { value: "pulses", label: "Pulses", icon: "🫘" },
-  { value: "dairy_eggs", label: "Dairy & Eggs", icon: "🥚" },
+  { value: "vegetables", label: "Vegetables", image: `${IMG}/vegetables.svg` },
+  { value: "fruits", label: "Fruits", image: `${IMG}/oranges.webp` },
+  { value: "rice_grains", label: "Rice & Grains", image: `${IMG}/rice.svg` },
+  { value: "flour", label: "Flour", image: `${IMG}/maize-flour.svg` },
+  {
+    value: "cooking_oil",
+    label: "Cooking Oil",
+    image: `${IMG}/cooking-oil.svg`,
+  },
+  { value: "sugar", label: "Sugar", image: `${IMG}/sugar.svg` },
+  { value: "pulses", label: "Pulses", image: `${IMG}/beans.svg` },
+  { value: "dairy_eggs", label: "Dairy & Eggs", image: `${IMG}/eggs.svg` },
 ];
 
 function money(price) {
@@ -32,18 +38,14 @@ function CampaignCard({ campaign, openRegister }) {
   const product = campaign.product || {};
   const ordered = Number(campaign.ordered_quantity || 0);
   const minimum = Number(campaign.min_quantity || 0);
-  const progress = minimum
-    ? Math.min(100, (ordered / minimum) * 100)
-    : 0;
+  const progress = minimum ? Math.min(100, (ordered / minimum) * 100) : 0;
 
   const discount = getDiscount(campaign);
 
   return (
     <div className="rounded-2xl bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-medium text-muted">
-          Group deal
-        </span>
+        <span className="text-sm font-medium text-muted">Group deal</span>
 
         {discount > 0 && (
           <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
@@ -68,9 +70,7 @@ function CampaignCard({ campaign, openRegister }) {
         {product.name || campaign.title}
       </h3>
 
-      <p className="mt-1 text-sm text-muted">
-        {product.unit || "Per unit"}
-      </p>
+      <p className="mt-1 text-sm text-muted">{product.unit || "Per unit"}</p>
 
       <div className="mt-4 flex items-center justify-between">
         <div>
@@ -93,7 +93,9 @@ function CampaignCard({ campaign, openRegister }) {
 
       <div className="mt-4">
         <div className="mb-2 flex justify-between text-xs text-muted">
-          <span>{ordered} of {minimum} needed</span>
+          <span>
+            {ordered} of {minimum} needed
+          </span>
           <span>{Math.round(progress)}%</span>
         </div>
 
@@ -183,7 +185,6 @@ export default function LandingPage() {
   return (
     <>
       <div className="min-h-screen bg-canvas text-ink">
-
         {/* Top promotion bar */}
         <div className="bg-forest px-4 py-3 text-center text-sm text-white">
           Buy together, save together. Get wholesale prices with Bread & Basket.
@@ -192,17 +193,26 @@ export default function LandingPage() {
         {/* Navigation */}
         <header className="bg-white shadow-sm">
           <div className="mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-4 px-5 py-5">
-
             <a href="#home" className="text-2xl font-extrabold text-forest">
               🧺 Bread &amp; Basket
             </a>
 
             <nav className="hidden items-center gap-7 text-sm font-semibold md:flex">
-              <a href="#home" className="hover:text-forest">Home</a>
-              <a href="#deals" className="hover:text-forest">Shop</a>
-              <a href="#wholesalers" className="hover:text-forest">Wholesalers</a>
-              <a href="#how-it-works" className="hover:text-forest">How it works</a>
-              <a href="#contact" className="hover:text-forest">Contact</a>
+              <a href="#home" className="hover:text-forest">
+                Home
+              </a>
+              <a href="#deals" className="hover:text-forest">
+                Shop
+              </a>
+              <a href="#wholesalers" className="hover:text-forest">
+                Wholesalers
+              </a>
+              <a href="#how-it-works" className="hover:text-forest">
+                How it works
+              </a>
+              <a href="#contact" className="hover:text-forest">
+                Contact
+              </a>
             </nav>
 
             <div className="flex items-center gap-3">
@@ -224,7 +234,6 @@ export default function LandingPage() {
         </header>
 
         <main className="mx-auto max-w-[1240px] px-4 sm:px-5">
-
           {/* Hero section */}
           <section
             id="home"
@@ -237,13 +246,12 @@ export default function LandingPage() {
 
               <h1 className="mt-6 max-w-2xl text-4xl font-extrabold leading-tight sm:text-5xl lg:text-6xl">
                 Your trusted source for{" "}
-                <span className="text-lime">wholesale & fresh</span>{" "}
-                foods.
+                <span className="text-lime">wholesale & fresh</span> foods.
               </h1>
 
               <p className="mt-5 max-w-xl leading-7 text-gray-200">
-                Shop together with your neighbours and enjoy wholesale prices
-                on everyday food and household essentials.
+                Shop together with your neighbours and enjoy wholesale prices on
+                everyday food and household essentials.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-4">
@@ -267,18 +275,16 @@ export default function LandingPage() {
               <div className="absolute h-64 w-64 rounded-full bg-lime/20 blur-3xl" />
 
               <div className="relative grid grid-cols-2 gap-4">
-                {[
-                  ["🥑", "Fresh produce"],
-                  ["🍚", "Everyday staples"],
-                  ["🥬", "Local groceries"],
-                  ["🫒", "Better prices"],
-                ].map(([icon, label]) => (
+                {categories.slice(0, 4).map((item) => (
                   <div
-                    key={label}
+                    key={item.label}
                     className="flex h-32 w-36 flex-col items-center justify-center rounded-2xl border border-white/20 bg-white/10 backdrop-blur"
                   >
-                    <span className="text-5xl">{icon}</span>
-                    <span className="mt-2 text-sm">{label}</span>
+                    <img
+                      src={item.image}
+                      className="size-16 object-contain sm:size-20"
+                    ></img>
+                    <span className="mt-2 text-sm">{item.label}</span>
                   </div>
                 ))}
               </div>
@@ -296,24 +302,39 @@ export default function LandingPage() {
               </a>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
-              {categories.map((item) => (
-                <button
-                  key={item.value}
-                  onClick={() => {
-                    setCategory(item.value);
-                    document.getElementById("deals")?.scrollIntoView({
-                      behavior: "smooth",
-                    });
-                  }}
-                  className="flex flex-col items-center gap-3 rounded-2xl bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-                >
-                  <span className="text-4xl">{item.icon}</span>
-                  <span className="text-center text-sm font-semibold">
-                    {item.label}
-                  </span>
-                </button>
-              ))}
+            <div className="overflow-x-auto px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="mx-auto flex w-max snap-x snap-mandatory gap-3 sm:gap-4">
+                {categories.map((item) => {
+                  const selected = category === item.value;
+
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => {
+                        setCategory(item.value);
+                        document
+                          .getElementById("deals")
+                          ?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className={`flex w-28 shrink-0 snap-start flex-col items-center gap-2 rounded-[18px] bg-white px-2.5 pb-4 pt-4 transition hover:-translate-y-1 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-forest sm:w-36 ${
+                        selected ? "ring-2 ring-forest" : ""
+                      }`}
+                    >
+                      <img
+                        src={item.image}
+                        alt=""
+                        className="size-16 object-contain sm:size-20"
+                        loading="lazy"
+                      />
+                      <span className="text-center text-sm font-semibold leading-tight sm:text-base">
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </section>
 
@@ -357,7 +378,9 @@ export default function LandingPage() {
           <section className="pt-14">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-muted">SHOP TOGETHER</p>
+                <p className="text-sm font-semibold text-muted">
+                  SHOP TOGETHER
+                </p>
                 <h2 className="mt-1 text-3xl font-bold text-forest">
                   Featured campaigns
                 </h2>
@@ -396,37 +419,41 @@ export default function LandingPage() {
           {/* Today's deals */}
           <section id="deals" className="pt-14">
             <div className="mb-6">
-              <p className="text-sm font-semibold text-muted">FIND SOMETHING GOOD</p>
+              <p className="text-sm font-semibold text-muted">
+                FIND SOMETHING GOOD
+              </p>
               <h2 className="mt-1 text-3xl font-bold text-forest">
                 Today's best deals
               </h2>
             </div>
 
-            <div className="mb-6 flex flex-wrap gap-2">
-              <button
-                onClick={() => setCategory("")}
-                className={`rounded-full px-5 py-2 text-sm font-bold ${
-                  category === ""
-                    ? "bg-forest text-white"
-                    : "bg-white text-forest"
-                }`}
-              >
-                All products
-              </button>
-
-              {categories.map((item) => (
+            <div className="-mx-4 mb-6 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+              <div className="flex w-max gap-2">
                 <button
-                  key={item.value}
-                  onClick={() => setCategory(item.value)}
+                  onClick={() => setCategory("")}
                   className={`rounded-full px-5 py-2 text-sm font-bold ${
-                    category === item.value
+                    category === ""
                       ? "bg-forest text-white"
                       : "bg-white text-forest"
                   }`}
                 >
-                  {item.label}
+                  All products
                 </button>
-              ))}
+
+                {categories.map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={() => setCategory(item.value)}
+                    className={`rounded-full px-5 py-2 text-sm font-bold ${
+                      category === item.value
+                        ? "bg-forest text-white"
+                        : "bg-white text-forest"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <input
@@ -476,7 +503,9 @@ export default function LandingPage() {
           {/* How it works */}
           <section id="how-it-works" className="py-16">
             <div className="mb-8 text-center">
-              <p className="text-sm font-semibold text-muted">SIMPLE AND EASY</p>
+              <p className="text-sm font-semibold text-muted">
+                SIMPLE AND EASY
+              </p>
               <h2 className="mt-2 text-3xl font-bold text-forest">
                 How it works
               </h2>
@@ -484,10 +513,26 @@ export default function LandingPage() {
 
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                ["🛒", "Choose a campaign", "Find the products you need at group prices."],
-                ["🤝", "Join the group", "Join a campaign and choose your quantity."],
-                ["📈", "Reach the target", "The group works together to reach the minimum."],
-                ["📦", "Collect your order", "Collect your order or arrange delivery."],
+                [
+                  "🛒",
+                  "Choose a campaign",
+                  "Find the products you need at group prices.",
+                ],
+                [
+                  "🤝",
+                  "Join the group",
+                  "Join a campaign and choose your quantity.",
+                ],
+                [
+                  "📈",
+                  "Reach the target",
+                  "The group works together to reach the minimum.",
+                ],
+                [
+                  "📦",
+                  "Collect your order",
+                  "Collect your order or arrange delivery.",
+                ],
               ].map(([icon, title, description], index) => (
                 <div key={title} className="rounded-2xl bg-white p-6 shadow-sm">
                   <div className="flex items-center justify-between">
@@ -551,8 +596,8 @@ export default function LandingPage() {
               </h2>
 
               <p className="mt-4 leading-7 text-muted">
-                Join Bread & Basket and start enjoying wholesale prices
-                on everyday essentials.
+                Join Bread & Basket and start enjoying wholesale prices on
+                everyday essentials.
               </p>
 
               <button
@@ -571,9 +616,7 @@ export default function LandingPage() {
         <footer id="contact" className="mt-16 bg-[#102D1E] py-12 text-white">
           <div className="mx-auto grid max-w-[1240px] gap-8 px-5 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <h3 className="text-xl font-extrabold">
-                Bread &amp; Basket 🧺
-              </h3>
+              <h3 className="text-xl font-extrabold">Bread &amp; Basket 🧺</h3>
               <p className="mt-3 text-sm leading-6 text-gray-300">
                 Bringing households together through affordable group buying.
               </p>
@@ -584,7 +627,10 @@ export default function LandingPage() {
               <a href="#deals" className="mt-3 block text-sm text-gray-300">
                 Shop products
               </a>
-              <a href="#how-it-works" className="mt-2 block text-sm text-gray-300">
+              <a
+                href="#how-it-works"
+                className="mt-2 block text-sm text-gray-300"
+              >
                 How it works
               </a>
             </div>
@@ -617,18 +663,15 @@ export default function LandingPage() {
           </div>
 
           <div className="mx-auto mt-10 max-w-[1240px] border-t border-white/10 px-5 pt-5 text-xs text-gray-400">
-            © {new Date().getFullYear()} Bread &amp; Basket. All rights reserved.
+            © {new Date().getFullYear()} Bread &amp; Basket. All rights
+            reserved.
           </div>
         </footer>
       </div>
 
       {/* Login and registration modal */}
       {tab && (
-        <AuthModal
-          tab={tab}
-          onTab={setTab}
-          onClose={() => setTab(null)}
-        />
+        <AuthModal tab={tab} onTab={setTab} onClose={() => setTab(null)} />
       )}
     </>
   );

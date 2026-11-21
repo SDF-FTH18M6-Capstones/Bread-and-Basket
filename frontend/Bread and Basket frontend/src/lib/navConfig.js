@@ -1,16 +1,33 @@
+// Icons are stored as components (no quotes, no < />).
+// In the nav: const Icon = link.icon; then <Icon size={22} />.
+// Older lucide-react versions call these Home, BarChart3 and CheckSquare.
+import {
+  House,
+  LayoutGrid,
+  Receipt,
+  User,
+  ChartColumn,
+  Package,
+  Truck,
+  Wallet,
+  SquareCheck,
+  Megaphone,
+} from "lucide-react";
+
 export const NAV_LINKS = {
   consumer: [
-    { to: "/shop", label: "Shop" },
-    { to: "/browse", label: "Browse" },
-    { to: "/orders", label: "Orders" },
-    { to: "/profile", label: "Profile" },
+    { to: "/shop", label: "Shop", icon: House },
+    { to: "/browse", label: "Browse", icon: LayoutGrid },
+    { to: "/orders", label: "Orders", icon: Receipt },
+    { to: "/profile", label: "Profile", icon: User },
   ],
 
   seller: [
-    { to: "/seller", label: "Dashboard" },
-    { to: "/seller/products", label: "Products" },
-    { to: "/seller/campaigns", label: "Campaign Orders" },
-    { to: "/seller/payouts", label: "Payouts" },
+    { to: "/seller", label: "Dashboard", icon: ChartColumn },
+    { to: "/seller/products", label: "Products", icon: Package },
+    { to: "/seller/campaigns", label: "Orders", icon: Truck },
+    { to: "/seller/payouts", label: "Payouts", icon: Wallet },
+    { to: "/seller/profile", label: "Profile", icon: User },
   ],
 
   admin: [
@@ -20,6 +37,7 @@ export const NAV_LINKS = {
       desktopLabel: "Dashboard",
       mobileLabel: "Dashboard",
       enabled: true,
+      icon: ChartColumn,
     },
     {
       to: "/admin/approvals",
@@ -27,6 +45,7 @@ export const NAV_LINKS = {
       desktopLabel: "Approvals",
       mobileLabel: "Approvals",
       enabled: true,
+      icon: SquareCheck,
     },
     {
       to: "/admin/campaigns",
@@ -34,6 +53,7 @@ export const NAV_LINKS = {
       desktopLabel: "Campaigns",
       mobileLabel: "Campaigns",
       enabled: true,
+      icon: Megaphone,
     },
     {
       to: "/admin/orders",
@@ -41,12 +61,16 @@ export const NAV_LINKS = {
       desktopLabel: "Orders & payments",
       mobileLabel: "Payments",
       enabled: true,
+      icon: Wallet,
     },
+
     {
-      label: "Alerts",
-      desktopLabel: "Notifications",
-      mobileLabel: "Alerts",
-      enabled: false,
+      to: "/admin/profile",
+      label: "Profile",
+      desktopLabel: "Profile",
+      mobileLabel: "Profile",
+      enabled: true,
+      icon: User,
     },
   ],
 };

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400"><defs>
+    <linearGradient id="gSack" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFDF6"/><stop offset="1" stop-color="#EADFC4"/></linearGradient>
+    <linearGradient id="gKraft" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#DDAE72"/><stop offset="1" stop-color="#B98149"/></linearGradient>
+    <linearGradient id="gOil" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFD866"/><stop offset=".6" stop-color="#F2B230"/><stop offset="1" stop-color="#DB931A"/></linearGradient>
+    <linearGradient id="gPack" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#ECF0E7"/></linearGradient>
+    <linearGradient id="gBowl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A86B3C"/><stop offset="1" stop-color="#734424"/></linearGradient>
+    <radialGradient id="gTomato" cx=".38" cy=".35" r=".7"><stop offset="0" stop-color="#FF7A55"/><stop offset=".7" stop-color="#E23B22"/><stop offset="1" stop-color="#B92614"/></radialGradient>
+    <radialGradient id="gEgg" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#FFF3E2"/><stop offset="1" stop-color="#DDB58A"/></radialGradient>
+    <radialGradient id="gShadow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#133D27" stop-opacity=".22"/><stop offset="1" stop-color="#133D27" stop-opacity="0"/></radialGradient>
+    </defs><ellipse cx="100" cy="183" rx="64" ry="8" fill="url(#gShadow)"/><rect x="85" y="16" width="30" height="20" rx="5" fill="#133D27"/><rect x="85" y="30" width="30" height="5" fill="#0D2B1B"/>
+    <path d="M90 36 H110 V50 C110 58 132 64 134 80 V164 C134 174 126 178 116 178 H84 C74 178 66 174 66 164 V80 C68 64 90 58 90 50Z" fill="url(#gOil)"/>
+    <path d="M76 86 V160" stroke="#fff" stroke-opacity=".55" stroke-width="7" stroke-linecap="round"/>
+    <rect x="76" y="98" width="50" height="54" rx="10" fill="#fff"/><path d="M101 106 c-9 4 -11 13 -6 19 c9 -2 13 -11 6 -19z" fill="#4E9A2E"/>
+    <text x="101" y="140" text-anchor="middle" font-family="Outfit,sans-serif" font-size="10" font-weight="800" fill="#133D27">OIL · 2L</text></svg>

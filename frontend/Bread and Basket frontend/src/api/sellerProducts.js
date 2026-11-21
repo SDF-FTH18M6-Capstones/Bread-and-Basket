@@ -10,3 +10,9 @@ export async function submitSellerProduct(product) {
     body: product,
   });
 }
+
+export async function confirmStock(campaignId) {
+  return request(`/seller/campaigns/${campaignId}/confirm-stock`, {
+    method: "POST",
+  });
+}
