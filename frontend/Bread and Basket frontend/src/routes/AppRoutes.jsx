@@ -20,6 +20,7 @@ import OrderDetailPage from "../features/orders/ordersDetailPage";
 import SellerDashboard from "../features/seller/SellerDashboard";
 import SellerHome from "../features/seller/SellerHome";
 import SellerCampaigns from "../features/seller/SellerCampaigns";
+import SellerEarnings from "../features/seller/SellerEarnings";
 
 import ProtectedRoute from "./ProtectedRoute";
 import Profile from "../features/profile/Profile.jsx";
@@ -48,6 +49,7 @@ export default function AppRoutes() {
           <Route path="/seller" element={<SellerDashboard />} />
           <Route path="/seller/products" element={<SellerHome />} />
           <Route path="/seller/campaigns" element={<SellerCampaigns />} />
+          <Route path="/seller/payouts" element={<SellerEarnings />} />
           <Route path="/seller/profile" element={<Profile />} />
         </Route>
 

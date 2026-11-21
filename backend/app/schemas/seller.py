@@ -23,7 +23,9 @@ class ProductCreateSchema(Schema):
         ),
     )
     unit = fields.Str(required=True, validate=validate.Length(max=40))
-    image_url = fields.Url(load_default=None, allow_none=True)
+    image_url = fields.Url(
+        relative=True, require_tld=False, load_default=None, allow_none=True
+    )
     wholesale_price = fields.Int(required=True, validate=validate.Range(min=1))
     retail_price = fields.Int(required=True, validate=validate.Range(min=1))
     stock_quantity = fields.Int(required=True, validate=validate.Range(min=0))

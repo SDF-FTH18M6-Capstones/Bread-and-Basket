@@ -12,17 +12,20 @@ class FulfilmentService:
         if status not in order.next_statuses:
             raise BusinessRuleError("Invalid Status", code="INVALID_STATUS_STEP")
 
-        order_id = order.id
-        campaign = db.session.scalar(
-            select(Campaign).where(Campaign.id == order.campaign_id)
-        )
+        campaign = order.campaign  # the relationship: no query needed
 
-        if campaign is None:
-            raise NotFound("Campaign not found")
+        if (
+            status == OrderStatus.PREPARING
+            and campaign.product.seller_id is not None
+            and campaign.stock_confirmed_at is None
+        ):
+            raise BusinessRuleError(
+                "The seller hasn't confirmed stock for this campaign yet.",
+                code="STOCK_NOT_CONFIRMED",
+            )
 
         order.status = status
-
-        add_history(order_id, status=status, note=note, by=admin.id)
+        add_history(order.id, status=status, note=note, by=admin.id)
 
         if (
             status == OrderStatus.PREPARING

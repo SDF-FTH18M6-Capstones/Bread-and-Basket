@@ -1,7 +1,7 @@
 from marshmallow import Schema, fields, validate, validates_schema, ValidationError
 from ..models.enums import CampaignStatus
 from .campaigns import CampaignSummarySchema
-from datetime import timezone, timedelta
+from datetime import timezone
 
 
 class AdminCampaignQuerySchema(Schema):
@@ -16,6 +16,14 @@ class AdminCampaignSchema(CampaignSummarySchema):
     closed_at = fields.DateTime()
     created_at = fields.DateTime()
     stock_confirmed_at = fields.DateTime()
+    awaiting_stock = fields.Method("get_awaiting_stock")
+
+    def get_awaiting_stock(self, campaign):
+        return (
+            campaign.status in (CampaignStatus.SUCCESSFUL, CampaignStatus.FULFILLING)
+            and campaign.product.seller_id is not None
+            and campaign.stock_confirmed_at is None
+        )
 
 
 class CampaignCreateSchema(Schema):

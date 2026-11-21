@@ -1,110 +1,120 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { LogOut, ShoppingBasket } from "lucide-react";
 import { useAuth } from "./hooks/useAuth";
 import Navbar from "./components/navigation/Navbar";
 import BottomTabs from "./components/navigation/BottomTabs";
 import { getLinksForRole } from "./lib/navConfig";
 
-function SellerSidebar({ user, logout }) {
-  const links = getLinksForRole("seller");
+// Per-role sidebar settings. `show` = from which width the sidebar replaces the top bar
+const SIDEBAR = {
+  seller: {
+    home: "/seller",
+    subtitle: "Wholesaler Centre",
+    show: "lg:flex",
+    dark: false,
+  },
+  admin: {
+    home: "/admin",
+    subtitle: "Platform admin",
+    show: "min-[900px]:flex",
+    dark: true,
+  },
+};
+
+function Sidebar({ role, user, logout }) {
+  const { home, subtitle, show, dark } = SIDEBAR[role];
+  const links = getLinksForRole(role).filter((link) => link.enabled !== false);
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-line bg-white lg:flex">
-      <div className="border-b border-line px-6 py-7">
-        <NavLink to="/seller" className="flex items-center">
-          <span className="text-lg font-extrabold text-forest">
-            Bread & Basket
+    <aside
+      className={`sticky top-0 hidden h-screen w-64 shrink-0 flex-col self-start ${show} ${
+        dark
+          ? "bg-forest-deep text-white"
+          : "border-r border-line bg-white text-ink"
+      }`}
+    >
+      {/* Brand */}
+      <NavLink
+        to={home}
+        className="flex items-center gap-3 px-6 py-6 no-underline"
+      >
+        <span
+          className={`flex size-10 items-center justify-center rounded-full ${
+            dark ? "bg-lime text-forest" : "bg-forest text-lime"
+          }`}
+        >
+          <ShoppingBasket size={20} aria-hidden="true" />
+        </span>
+        <span className="flex flex-col leading-tight">
+          <span
+            className={`text-lg font-extrabold ${dark ? "text-white" : "text-forest"}`}
+          >
+            Bread &amp; Basket
           </span>
-        </NavLink>
-        <p className="mt-1 text-xs text-muted">Wholesaler Centre</p>
-      </div>
+          <span className={`text-xs ${dark ? "text-lime" : "text-muted"}`}>
+            {subtitle}
+          </span>
+        </span>
+      </NavLink>
 
-      <div className="px-4 py-6">
-        <p className="mb-3 px-3 text-xs font-bold uppercase tracking-widest text-muted">
-          Seller menu
-        </p>
-
-        <nav className="flex flex-col gap-2">
-          {links.map((link) => (
+      {/* Links */}
+      <nav
+        aria-label={`${role} navigation`}
+        className="flex flex-col gap-1 px-3 pt-2"
+      >
+        {links.map((link) => {
+          const Icon = link.icon;
+          return (
             <NavLink
               key={link.to}
               to={link.to}
-              end={link.to === "/seller"}
+              end={link.end}
               className={({ isActive }) =>
-                `flex items-center rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold no-underline transition ${
                   isActive
-                    ? "bg-lime-soft text-forest"
-                    : "text-ink-2 hover:bg-grey-soft"
+                    ? dark
+                      ? "bg-lime text-forest"
+                      : "bg-lime-soft text-forest"
+                    : dark
+                      ? "text-white/80 hover:bg-white/10"
+                      : "text-ink-2 hover:bg-grey-soft"
                 }`
               }
             >
-              {link.label}
+              {Icon && <Icon size={19} aria-hidden="true" />}
+              <span className="truncate">
+                {link.desktopLabel ?? link.label}
+              </span>
             </NavLink>
-          ))}
-        </nav>
-      </div>
+          );
+        })}
+      </nav>
 
-      <div className="mt-auto border-t border-line p-5">
-        <div className="mb-4">
-          <p className="truncate text-sm font-bold text-ink">
-            {user?.full_name || "Wholesaler"}
-          </p>
-          <p className="truncate text-xs text-muted">{user?.email}</p>
-        </div>
-
+      {/* Account + log out */}
+      <div
+        className={`mt-auto border-t p-5 ${dark ? "border-white/15" : "border-line"}`}
+      >
+        <p
+          className={`truncate text-sm font-bold ${dark ? "text-white" : "text-ink"}`}
+        >
+          {user?.full_name || "Account"}
+        </p>
+        <p
+          className={`truncate text-xs ${dark ? "text-white/60" : "text-muted"}`}
+        >
+          {user?.email}
+        </p>
         <button
           type="button"
           onClick={logout}
-          className="w-full rounded-xl border border-line px-4 py-3 text-left text-sm font-semibold text-ink-2 transition hover:bg-grey-soft"
+          className={`mt-4 flex w-full items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
+            dark
+              ? "border-white/25 text-white hover:bg-white/10"
+              : "border-line text-ink-2 hover:bg-grey-soft"
+          }`}
         >
-          Log out
+          <LogOut size={16} aria-hidden="true" /> Log out
         </button>
-      </div>
-    </aside>
-  );
-}
-
-function AdminSidebar({ user }) {
-  const links = getLinksForRole("admin");
-
-  return (
-    <aside className="admin-sidebar">
-      <div className="admin-sidebar__brand">
-        <NavLink to="/admin" className="admin-brand">
-          <span className="admin-brand__name">Bread & Basket</span>
-          <span className="admin-brand__role">Admin</span>
-        </NavLink>
-      </div>
-
-      <nav className="admin-sidebar__links" aria-label="Admin navigation">
-        {links.map((link) =>
-          link.enabled ? (
-            <NavLink
-              key={link.label}
-              to={link.to}
-              end
-              className={({ isActive }) =>
-                `admin-nav-link${isActive ? " is-active" : ""}`
-              }
-            >
-              {link.desktopLabel ?? link.label}
-            </NavLink>
-          ) : (
-            <span
-              key={link.label}
-              className="admin-nav-link admin-nav-link--disabled"
-              aria-disabled="true"
-            >
-              {link.desktopLabel ?? link.label}
-            </span>
-          ),
-        )}
-      </nav>
-
-      <div className="admin-sidebar__footer">
-        <p className="admin-sidebar__user-name">
-          {user?.full_name || user?.email || "Account"}
-        </p>
-        <p className="admin-sidebar__user-role">Platform admin</p>
       </div>
     </aside>
   );
@@ -114,39 +124,25 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const role = user?.role;
 
-  if (role === "admin") {
-    return (
-      <div className="admin-layout">
-        <AdminSidebar user={user} />
+  // Admin and wholesaler: sidebar on wide screens, top bar + bottom tabs on narrow ones
+  if (role === "admin" || role === "seller") {
+    const isAdmin = role === "admin";
 
-        <div className="admin-layout__content">
-          <div className="admin-mobile-header">
-            <Navbar />
-          </div>
-
-          <main className="admin-main">
-            <Outlet />
-          </main>
-
-          <BottomTabs />
-        </div>
-      </div>
-    );
-  }
-
-  if (role === "seller") {
     return (
       <div className="flex min-h-screen bg-canvas">
-        <SellerSidebar user={user} logout={logout} />
+        <Sidebar role={role} user={user} logout={logout} />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="lg:hidden">
+          <div className={isAdmin ? "min-[900px]:hidden" : "lg:hidden"}>
             <Navbar />
           </div>
 
-          <main className="min-w-0 flex-1">
+          {/* Bottom space so the fixed tab bar never covers the end of a page */}
+          <div
+            className={`min-w-0 flex-1 ${isAdmin ? "pb-24 min-[900px]:pb-0" : "pb-24 md:pb-0"}`}
+          >
             <Outlet />
-          </main>
+          </div>
 
           <BottomTabs />
         </div>
@@ -154,13 +150,14 @@ export default function Layout() {
     );
   }
 
+  // Shoppers: top bar + bottom tabs
   return (
-    <>
+    <div className="min-h-screen bg-canvas">
       <Navbar />
-      <main>
+      <div className="pb-24 md:pb-0">
         <Outlet />
-      </main>
+      </div>
       <BottomTabs />
-    </>
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import {
@@ -6,6 +6,7 @@ import {
   submitSellerProduct,
 } from "../../api/sellerProducts";
 import { assetUrl } from "../../api/client";
+import { productImage } from "../../lib/productImages";
 
 const CATEGORIES = [
   { value: "vegetables", label: "Vegetables" },
@@ -26,6 +27,7 @@ const EMPTY_FORM = {
   wholesale_price: "",
   retail_price: "",
   stock_quantity: "",
+  image_url: "",
 };
 
 function formatKES(amount) {
@@ -56,27 +58,45 @@ function ApprovalBadge({ status }) {
   );
 }
 
-function ProductImage({ src, name }) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const image = src ? assetUrl(src) : null;
+// Card image: the seller's link, or the category picture if there's no link
+// or the link is broken.
+function ProductImage({ product }) {
+  const [failed, setFailed] = useState(false);
+  const fallback = productImage({ category: product.category });
+  const src =
+    !failed && product.image_url ? assetUrl(product.image_url) : fallback;
 
-  if (!image || imageFailed) {
+  return (
+    <div className="h-[150px] w-full overflow-hidden rounded-xl bg-canvas">
+      <img
+        src={src}
+        alt={product.name}
+        className="h-full w-full object-contain p-2"
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
+}
+
+// Small live preview next to the "Image link" field
+function ImageLinkPreview({ url }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
     return (
-      <div className="flex h-[150px] w-full items-center justify-center bg-grey-soft text-sm text-muted">
-        No product image
-      </div>
+      <p className="flex h-full items-center justify-center px-2 text-center text-[11px] leading-tight text-bad">
+        Can't load this link
+      </p>
     );
   }
 
   return (
-    <div className="h-[150px] w-full overflow-hidden bg-grey-soft">
-      <img
-        src={image}
-        alt={name}
-        className="h-full w-full object-cover"
-        onError={() => setImageFailed(true)}
-      />
-    </div>
+    <img
+      src={assetUrl(url)}
+      alt="Product preview"
+      onError={() => setFailed(true)}
+      className="size-full object-contain p-1"
+    />
   );
 }
 
@@ -84,7 +104,7 @@ function ProductCard({ product }) {
   return (
     <article className="flex min-w-0 flex-col gap-3 rounded-[18px] border border-line bg-white p-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md">
       <div className="relative">
-        <ProductImage src={product.image_url} name={product.name} />
+        <ProductImage product={product} />
 
         <div className="absolute left-2 top-2">
           <ApprovalBadge status={product.approval_status} />
@@ -129,43 +149,9 @@ function ProductCard({ product }) {
   );
 }
 
-function ProductImagePreview({ src }) {
-  if (!src) {
-    return null;
-  }
-
-  return (
-    <div className="mt-2 flex max-h-28 justify-center overflow-hidden rounded-xl">
-      <img
-        src={src}
-        alt="Selected product preview"
-        className="max-h-28 max-w-full object-contain"
-      />
-    </div>
-  );
-}
-
 function AddProductModal({ onClose, onSubmit, submitting, error }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState("");
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState("");
-
-  const fileInputRef = useRef(null);
-
-  useEffect(() => {
-    if (!selectedImage) {
-      setPreviewUrl("");
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(selectedImage);
-    setPreviewUrl(objectUrl);
-
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [selectedImage]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -175,23 +161,6 @@ function AddProductModal({ onClose, onSubmit, submitting, error }) {
       [name]: value,
     }));
 
-    setFormError("");
-  }
-
-  function handleImageChange(event) {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      setFormError("Please select a valid image file.");
-      event.target.value = "";
-      return;
-    }
-
-    setSelectedImage(file);
     setFormError("");
   }
 
@@ -225,6 +194,7 @@ function AddProductModal({ onClose, onSubmit, submitting, error }) {
       wholesale_price: wholesale,
       retail_price: retail,
       stock_quantity: stock,
+      image_url: form.image_url.trim() || null,
     };
 
     await onSubmit(product);
@@ -286,56 +256,52 @@ function AddProductModal({ onClose, onSubmit, submitting, error }) {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-[14px]">
-          {/* Product photo */}
-          <div className="w-full rounded-2xl border-[1.5px] border-dashed border-[#C6D2C5] bg-grey-soft p-[14px]">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              className="hidden"
-            />
-
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={submitting}
-              className="flex w-full flex-col items-center gap-1.5 rounded-xl text-center disabled:cursor-not-allowed"
-            >
-              {previewUrl ? (
-                <ProductImagePreview src={previewUrl} />
+          {/* Product image (by link) */}
+          <div className="flex items-center gap-3 rounded-2xl border border-line bg-canvas p-3">
+            <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-xl border border-line bg-white text-muted">
+              {form.image_url.trim() ? (
+                <ImageLinkPreview
+                  key={form.image_url.trim()}
+                  url={form.image_url.trim()}
+                />
               ) : (
                 <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="28"
-                  height="28"
+                  width="24"
+                  height="24"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="#133D27"
+                  stroke="currentColor"
                   strokeWidth="1.7"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  aria-hidden="true"
                 >
                   <rect x="3" y="3" width="18" height="18" rx="3" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <path d="m21 15-5-5L5 21" />
                 </svg>
               )}
+            </div>
 
-              <span className="text-sm font-semibold text-forest">
-                {selectedImage ? "Change photo" : "Upload product photo"}
+            <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm font-semibold text-ink">
+              <span>
+                Image link{" "}
+                <span className="font-normal text-muted">(optional)</span>
               </span>
-
-              <span className="text-xs text-muted">
-                Shows on campaign cards
+              <input
+                type="url"
+                name="image_url"
+                value={form.image_url}
+                onChange={handleChange}
+                placeholder="https://…/product.jpg"
+                maxLength={500}
+                disabled={submitting}
+                className="min-h-10 w-full rounded-lg border border-line bg-white px-3 text-sm font-normal text-ink outline-none transition placeholder:text-muted/70 focus:border-forest focus:ring-2 focus:ring-lime/40"
+              />
+              <span className="text-xs font-normal text-muted">
+                Leave empty to use the category picture.
               </span>
-
-              {selectedImage && (
-                <span className="mt-1 max-w-full break-all text-xs text-muted">
-                  {selectedImage.name}
-                </span>
-              )}
-            </button>
+            </label>
           </div>
 
           {/* Product name */}

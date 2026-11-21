@@ -14,6 +14,8 @@ import {
   updateAdminOrderStatus,
 } from "../../api/adminOrders";
 
+import { productImage } from "../../lib/productImages";
+
 const STATUS_STYLES = {
   draft: "bg-gray-100 text-gray-700",
   active: "bg-lime/20 text-forest",
@@ -281,7 +283,7 @@ export default function AdminCampaignDetailPage() {
 
   if (loading) {
     return (
-      <main className="admin-main">
+      <main className="mx-auto w-full min-w-0 max-w-[1240px] px-4 pb-12 pt-5 md:px-8">
         <div className="rounded-2xl border border-line bg-white p-12 text-center">
           <p className="text-sm text-muted">Loading campaign...</p>
         </div>
@@ -291,7 +293,7 @@ export default function AdminCampaignDetailPage() {
 
   if (!campaign) {
     return (
-      <main className="admin-main">
+      <main className="mx-auto w-full min-w-0 max-w-[1240px] px-4 pb-12 pt-5 md:px-8">
         <button
           type="button"
           onClick={() => navigate("/admin/campaigns")}
@@ -336,6 +338,8 @@ export default function AdminCampaignDetailPage() {
   const canFulfilOrders = ["successful", "fulfilling"].includes(
     campaign.status,
   );
+
+  const awaitingStock = Boolean(campaign.awaiting_stock);
 
   const product = campaign.product || {};
 
@@ -389,7 +393,7 @@ export default function AdminCampaignDetailPage() {
   );
 
   return (
-    <main className="admin-main min-w-0">
+    <main className="mx-auto w-full min-w-0 max-w-[1240px] px-4 pb-12 pt-5 md:px-8">
       <button
         type="button"
         onClick={() => navigate("/admin/campaigns")}
@@ -401,17 +405,11 @@ export default function AdminCampaignDetailPage() {
       {/* Campaign heading */}
       <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-4">
-          {product.image_url ? (
-            <img
-              src={product.image_url}
-              alt={product.name || "Campaign product"}
-              className="h-16 w-16 shrink-0 rounded-xl object-cover"
-            />
-          ) : (
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-3xl">
-              📦
-            </div>
-          )}
+          <img
+            src={productImage(product)}
+            alt={product.name || "Campaign product"}
+            className="h-16 w-16 shrink-0 rounded-xl bg-canvas object-contain p-1.5"
+          />
 
           <div className="min-w-0">
             <p className="text-xs font-medium text-muted">
@@ -651,7 +649,14 @@ export default function AdminCampaignDetailPage() {
                                   key={status}
                                   type="button"
                                   disabled={
-                                    Boolean(orderActionLoading) || actionLoading
+                                    Boolean(orderActionLoading) ||
+                                    actionLoading ||
+                                    (status === "preparing" && awaitingStock)
+                                  }
+                                  title={
+                                    status === "preparing" && awaitingStock
+                                      ? "Waiting for the seller to confirm stock"
+                                      : undefined
                                   }
                                   onClick={() =>
                                     handleIndividualOrderUpdate(order, status)
@@ -737,12 +742,31 @@ export default function AdminCampaignDetailPage() {
                   </p>
                 </div>
 
+                {awaitingStock && (
+                  <p className="rounded-xl bg-orange-soft p-3 text-sm leading-snug text-orange-text">
+                    <strong>Waiting for the seller to confirm stock.</strong>{" "}
+                    You can mark orders as preparing once they do. Press Refresh
+                    to check.
+                  </p>
+                )}
+
+                {campaign.stock_confirmed_at && (
+                  <p className="rounded-xl bg-lime-soft p-3 text-sm text-forest">
+                    Seller confirmed stock{" "}
+                    {formatDate(campaign.stock_confirmed_at)}.
+                  </p>
+                )}
+
                 {availableBulkStatuses.length > 0 ? (
                   availableBulkStatuses.map((status) => (
                     <button
                       key={status}
                       type="button"
-                      disabled={Boolean(orderActionLoading) || actionLoading}
+                      disabled={
+                        Boolean(orderActionLoading) ||
+                        actionLoading ||
+                        (status === "preparing" && awaitingStock)
+                      }
                       onClick={() => handleBulkOrderUpdate(status)}
                       className="w-full rounded-xl bg-forest px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
