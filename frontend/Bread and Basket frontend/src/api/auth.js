@@ -23,3 +23,7 @@ export function registerWholesaler(details) {
     body: details,
   });
 }
+
+export function getMe() {
+  return request("/me");
+}

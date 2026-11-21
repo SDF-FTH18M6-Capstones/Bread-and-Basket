@@ -3,7 +3,8 @@ import Layout from "../Layout";
 
 import LandingPage from "../features/landing/LandingPage";
 
-import ShopHome from "../features/shop/ShopHome";
+import ShopPage from "../features/shop/ShopPage.jsx";
+import BrowsePage from "../features/shop/BrowsePage";
 import CampaignDetailPage from "../features/shop/CampaignDetailPage";
 
 import AdminDashboardPage from "../features/admin/AdminDashboardPage";
@@ -21,6 +22,7 @@ import SellerHome from "../features/seller/SellerHome";
 import SellerCampaigns from "../features/seller/SellerCampaigns";
 
 import ProtectedRoute from "./ProtectedRoute";
+import Profile from "../features/profile/Profile.jsx";
 
 export default function AppRoutes() {
   return (
@@ -30,12 +32,14 @@ export default function AppRoutes() {
       <Route element={<Layout />}>
         {/* Consumer Routes */}
         <Route element={<ProtectedRoute allowedRoles={["consumer"]} />}>
-          <Route path="/shop" element={<ShopHome />} />
+          <Route path="/shop" element={<ShopPage />} />
+          <Route path="/browse" element={<BrowsePage />} />
           <Route
             path="/campaigns/:campaignId"
             element={<CampaignDetailPage />}
           />
           <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
         </Route>
 
@@ -44,6 +48,7 @@ export default function AppRoutes() {
           <Route path="/seller" element={<SellerDashboard />} />
           <Route path="/seller/products" element={<SellerHome />} />
           <Route path="/seller/campaigns" element={<SellerCampaigns />} />
+          <Route path="/seller/profile" element={<Profile />} />
         </Route>
 
         {/* Admin Routes */}
@@ -64,6 +69,7 @@ export default function AppRoutes() {
             element={<AdminCampaignDetailPage />}
           />
           <Route path="/admin/orders" element={<AdminOrdersPaymentsPage />} />
+          <Route path="/admin/profile" element={<Profile />} />
         </Route>
       </Route>
     </Routes>

@@ -75,11 +75,6 @@
   cursor: pointer;
 }
 
-/* Original mobile navigation */
-.bottom-tabs {
-  display: none;
-}
-
 @media (max-width: 768px) {
   .navbar__links,
   .navbar__name {
@@ -95,37 +90,8 @@
     padding-bottom: calc(var(--tabs-height) + var(--space-md));
   }
 
-  .bottom-tabs {
-    display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    height: var(--tabs-height);
-    background: var(--nav-bg);
-    border-top: 1px solid var(--nav-border);
-  }
-
-  .bottom-tabs__tab {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-xs);
-    color: var(--nav-text);
-    text-decoration: none;
-    font-size: 0.75rem;
-  }
-
   .bottom-tabs__icon {
     font-size: 1.25rem;
-  }
-
-  .bottom-tabs__tab.is-active {
-    color: var(--nav-active);
-    font-weight: 600;
   }
 }
 
@@ -225,13 +191,6 @@
   font-size: 12px;
 }
 
-.admin-layout__content {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
 .admin-main {
   flex: 1;
   min-width: 0;
@@ -282,10 +241,6 @@
   cursor: pointer;
 }
 
-.admin-bottom-tabs {
-  display: none;
-}
-
 @media (max-width: 899px) {
   .admin-sidebar {
     display: none;
@@ -297,42 +252,5 @@
 
   .admin-main {
     padding: 20px 16px 110px;
-  }
-
-  .admin-bottom-tabs {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 100;
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    min-height: 66px;
-    background: #ffffff;
-    border-top: 1px solid #e5e5e5;
-  }
-
-  .admin-bottom-tabs__tab {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 7px 3px;
-    color: #46534b;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.3;
-    text-align: center;
-    text-decoration: none;
-    overflow-wrap: anywhere;
-  }
-
-  .admin-bottom-tabs__tab.is-active {
-    background: #eef5e8;
-    color: #103d2d;
-  }
-
-  .admin-bottom-tabs__tab--disabled {
-    color: #a5aca7;
-    cursor: not-allowed;
   }
 }

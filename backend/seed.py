@@ -444,6 +444,25 @@ with app.app_context():
         cleo,
         davy_profile,
     )
+
+    images = {
+        rice: "rice.svg",
+        unga: "maize-flour.svg",
+        oil: "cooking-oil.svg",
+        sugar: "sugar.svg",
+        green_grams: "green-grams.svg",
+        beans: "beans.svg",
+        wheat_flour: "wheat-flour.svg",
+        onions: "onions.webp",
+        avocados: "avocados.webp",
+        eggs: "eggs.svg",
+        milk: "milk.svg",
+        potatoes: "potatoes.webp",
+        tomatoes: "tomatoes.webp",
+    }
+    for product, file_name in images.items():
+        product.image_url = f"/images/products/{file_name}"
+
     db.session.add_all(
         [
             rice,

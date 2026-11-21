@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400"><defs>
+    <linearGradient id="gSack" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFDF6"/><stop offset="1" stop-color="#EADFC4"/></linearGradient>
+    <linearGradient id="gKraft" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#DDAE72"/><stop offset="1" stop-color="#B98149"/></linearGradient>
+    <linearGradient id="gOil" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFD866"/><stop offset=".6" stop-color="#F2B230"/><stop offset="1" stop-color="#DB931A"/></linearGradient>
+    <linearGradient id="gPack" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#ECF0E7"/></linearGradient>
+    <linearGradient id="gBowl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A86B3C"/><stop offset="1" stop-color="#734424"/></linearGradient>
+    <radialGradient id="gTomato" cx=".38" cy=".35" r=".7"><stop offset="0" stop-color="#FF7A55"/><stop offset=".7" stop-color="#E23B22"/><stop offset="1" stop-color="#B92614"/></radialGradient>
+    <radialGradient id="gEgg" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#FFF3E2"/><stop offset="1" stop-color="#DDB58A"/></radialGradient>
+    <radialGradient id="gShadow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#133D27" stop-opacity=".22"/><stop offset="1" stop-color="#133D27" stop-opacity="0"/></radialGradient>
+    </defs><ellipse cx="100" cy="183" rx="64" ry="8" fill="url(#gShadow)"/><circle cx="68" cy="96" r="30" fill="#3E8E2F"/><circle cx="92" cy="78" r="28" fill="#5AAE3A"/><circle cx="58" cy="124" r="24" fill="#4E9A2E"/>
+    <path d="M126 70 L170 170 L150 176 Z" fill="#FF8A3C"/><path d="M134 92 l12 4 M140 110 l12 4 M146 128 l11 4" stroke="#E46A1C" stroke-width="2"/><path d="M128 70 c-10 -14 -4 -26 2 -30 M128 70 c2 -16 12 -22 18 -22 M128 70 c-14 -6 -18 -16 -16 -24" stroke="#4E9A2E" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <circle cx="96" cy="146" r="30" fill="url(#gTomato)"/><path d="M96 118 l-10 -4 l7 6 l-9 4 l11 -2 l1 9 l2 -9 l11 2 l-9 -4 l7 -6z" fill="#3E8E2F"/><ellipse cx="86" cy="136" rx="6" ry="4" fill="#fff" fill-opacity=".5"/></svg>

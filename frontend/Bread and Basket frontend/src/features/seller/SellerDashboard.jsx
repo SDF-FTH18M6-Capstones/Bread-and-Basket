@@ -1,9 +1,45 @@
-
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { AlertCircle, CheckCircle2, ChevronRight, Plus } from "lucide-react";
 import { getSellerProducts } from "../../api/sellerProducts";
 import { request } from "../../api/client";
 import { useAuth } from "../../hooks/useAuth";
+import CampaignCard from "../shop/CampaignCard"; // adjust to where CampaignCard lives
+import { productImage } from "../../lib/productImages";
+
+const VERIFICATION = {
+  approved: { label: "Verified", className: "bg-lime-soft text-forest" },
+  pending: {
+    label: "Verification pending",
+    className: "bg-orange-soft text-orange-text",
+  },
+  rejected: { label: "Not approved", className: "bg-bad-soft text-bad" },
+};
+
+const SUPPLYING = ["successful", "fulfilling"];
+
+const TILE = {
+  plain: { box: "bg-white text-ink", label: "text-muted", value: "text-ink" },
+  dark: {
+    box: "bg-forest text-white",
+    label: "text-white/75",
+    value: "text-lime",
+  },
+  hot: { box: "bg-orange text-ink", label: "text-ink/80", value: "text-ink" },
+};
+
+function Stat({ label, value, hint, tone = "plain" }) {
+  const t = TILE[tone];
+  return (
+    <div className={`rounded-[18px] p-5 ${t.box}`}>
+      <p className={`text-sm ${t.label}`}>{label}</p>
+      <p className={`mt-1 text-3xl font-bold tabular-nums ${t.value}`}>
+        {value}
+      </p>
+      {hint && <p className={`mt-1 text-xs ${t.label}`}>{hint}</p>}
+    </div>
+  );
+}
 
 export default function SellerDashboard() {
   const navigate = useNavigate();
@@ -13,290 +49,310 @@ export default function SellerDashboard() {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0); // bump it to load again
 
   useEffect(() => {
-    async function fetchDashboard() {
-      try {
-        const productData = await getSellerProducts();
-        const campaignData = await request("/seller/campaigns");
+    let cancelled = false;
+    setLoading(true);
+    setError("");
 
+    Promise.all([getSellerProducts(), request("/seller/campaigns")])
+      .then(([productData, campaignData]) => {
+        if (cancelled) return;
         setProducts(productData);
         setCampaigns(campaignData);
-      } catch (err) {
-        setError(err.message || "Failed to load dashboard.");
-      } finally {
-        setLoading(false);
-      }
-    }
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || "Failed to load dashboard.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    fetchDashboard();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
 
-  const liveCampaigns = campaigns.filter(
-    (campaign) => campaign.status === "active"
-  );
-
-  const totalUnits = liveCampaigns.reduce(
-    (total, campaign) => total + (campaign.ordered_quantity || 0),
-    0
-  );
-
+  // Worked out from the raw data
+  const live = campaigns.filter((c) => c.status === "active");
+  const unitsLive = live.reduce((sum, c) => sum + (c.ordered_quantity || 0), 0);
+  const supplying = campaigns.filter((c) => SUPPLYING.includes(c.status));
+  const awaitingStock = supplying.filter((c) => !c.stock_confirmed_at);
   const pendingProducts = products.filter(
-    (product) => product.status === "pending"
-  ).length;
+    (p) => p.approval_status === "pending",
+  );
+  const rejectedProducts = products.filter(
+    (p) => p.approval_status === "rejected",
+  );
 
   const verificationStatus = user?.seller?.verification_status;
-
-  const stats = [
-    {
-      title: "Live campaigns",
-      value: liveCampaigns.length,
-      color: "bg-forest text-white",
-    },
-    {
-      title: "Units ordered (live)",
-      value: totalUnits,
-      color: "bg-white text-ink",
-    },
-    {
-      title: "Pending payouts",
-      value: "—",
-      color: "bg-white text-ink",
-    },
-    {
-      title: "Awaiting approval",
-      value: pendingProducts,
-      color: "bg-white text-ink",
-    },
-  ];
+  const verification = VERIFICATION[verificationStatus];
+  const approved = verificationStatus === "approved";
+  const actionCount = rejectedProducts.length + awaitingStock.length;
 
   if (loading) {
-    return <p className="p-8 text-center">Loading dashboard...</p>;
+    return (
+      <main className="mx-auto max-w-[1240px] px-4 pb-12 pt-5 md:px-8">
+        <div aria-busy="true" aria-label="Loading" className="space-y-6">
+          <div className="h-8 w-56 animate-pulse rounded bg-grey-soft" />
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-28 animate-pulse rounded-[18px] bg-grey-soft"
+              />
+            ))}
+          </div>
+        </div>
+      </main>
+    );
   }
 
   if (error) {
     return (
-      <div className="p-8 text-center">
-        <p className="mb-4 text-red-600">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="rounded-lg bg-forest px-5 py-2 text-white"
-        >
-          Try again
-        </button>
-      </div>
+      <main className="mx-auto max-w-[1240px] px-4 pb-12 pt-5 md:px-8">
+        <div role="alert" className="rounded-2xl bg-bad-soft p-6 text-center">
+          <p className="font-semibold text-bad">{error}</p>
+          <button
+            type="button"
+            onClick={() => setAttempt((n) => n + 1)}
+            className="mt-4 rounded-full bg-forest px-5 py-2 text-sm font-semibold text-white"
+          >
+            Try again
+          </button>
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-canvas p-5 md:p-8">
-
-      {/* Welcome section */}
-      <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-muted">
-            Welcome back
-          </p>
-
-          <div className="mt-1 flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-forest">
-              {user?.full_name || "Wholesaler"}
+    <main className="mx-auto max-w-[1240px] px-4 pb-12 pt-5 md:px-8">
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm text-muted">Welcome back</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2.5">
+            <h1 className="text-[26px] font-bold leading-tight tracking-tight text-ink">
+              {user?.seller?.business_name || user?.full_name || "Wholesaler"}
             </h1>
-
-            {verificationStatus === "approved" && (
-              <span className="rounded-full bg-lime-soft px-3 py-1 text-xs font-bold text-forest">
-                ✓ Verified
-              </span>
-            )}
-
-            {verificationStatus === "pending" && (
-              <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-800">
-                Verification pending
+            {verification && (
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${verification.className}`}
+              >
+                {approved && <CheckCircle2 size={13} aria-hidden="true" />}
+                {verification.label}
               </span>
             )}
           </div>
         </div>
 
         <button
+          type="button"
           onClick={() => navigate("/seller/products")}
-          className="rounded-xl bg-lime px-5 py-3 text-sm font-bold text-forest transition hover:bg-lime-200"
+          disabled={!approved}
+          title={
+            approved
+              ? undefined
+              : "You can add products once your business is approved"
+          }
+          className="flex items-center gap-1.5 rounded-full bg-lime px-5 py-2.5 text-sm font-bold text-forest transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          + Add product
+          <Plus size={16} aria-hidden="true" /> Add product
         </button>
       </div>
 
-      {/* Statistics */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.title}
-            className={`rounded-2xl border border-line p-6 shadow-sm ${stat.color}`}
-          >
-            <p className="text-sm font-medium opacity-80">
-              {stat.title}
-            </p>
+      {/* Verification notice */}
+      {!approved && verification && (
+        <p
+          className={`mt-5 flex items-start gap-2 rounded-xl px-4 py-3 text-sm ${
+            verificationStatus === "rejected"
+              ? "bg-bad-soft text-bad"
+              : "bg-orange-soft text-orange-text"
+          }`}
+        >
+          <AlertCircle
+            size={18}
+            className="mt-0.5 shrink-0"
+            aria-hidden="true"
+          />
+          {verificationStatus === "rejected"
+            ? "Your business wasn't approved. Check your profile for the reason."
+            : "An admin is reviewing your business. You can add products once you're approved."}
+        </p>
+      )}
 
-            <h2 className="mt-3 text-3xl font-extrabold">
-              {stat.value}
-            </h2>
+      {/* Stats */}
+      <section
+        className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4"
+        aria-label="Summary"
+      >
+        <Stat label="Live campaigns" value={live.length} tone="dark" />
+        <Stat label="Units ordered (live)" value={unitsLive} />
+        <Stat
+          label="Waiting for your stock"
+          value={awaitingStock.length}
+          hint={
+            awaitingStock.length ? "Confirm you can supply" : "All confirmed"
+          }
+          tone={awaitingStock.length ? "hot" : "plain"}
+        />
+        <Stat
+          label="Awaiting approval"
+          value={pendingProducts.length}
+          hint={pendingProducts.length === 1 ? "product" : "products"}
+        />
+      </section>
 
-            {stat.title === "Pending payouts" && (
-              <p className="mt-2 text-xs opacity-70">
-                Payout data not connected yet
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Live campaigns and recent activity */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-
+      <div className="mt-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
         {/* Live campaigns */}
-        <section className="xl:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-ink">
-              Live campaigns
-            </h2>
-
-            <button
-              onClick={() => navigate("/seller/campaigns")}
-              className="text-sm font-bold text-forest hover:underline"
+        <section className="min-w-0 xl:col-span-2">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="text-xl font-bold tracking-tight">Live campaigns</h2>
+            <Link
+              to="/seller/campaigns"
+              className="flex shrink-0 items-center gap-1 text-sm font-semibold text-forest no-underline hover:underline"
             >
-              All orders →
-            </button>
+              Campaign orders <ChevronRight size={15} aria-hidden="true" />
+            </Link>
           </div>
 
-          {liveCampaigns.length === 0 ? (
-            <div className="rounded-2xl border border-line bg-white p-8 text-center">
-              <p className="font-semibold text-ink">
-                No live campaigns
-              </p>
-              <p className="mt-2 text-sm text-muted">
-                Your active campaigns will appear here.
+          {live.length === 0 ? (
+            <div className="rounded-[18px] bg-white px-4 py-10 text-center">
+              <p className="font-semibold">No live campaigns</p>
+              <p className="mt-1 text-sm text-muted">
+                When an admin opens a campaign for one of your products, it
+                shows here.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              {liveCampaigns.map((campaign) => {
-                const quantity = campaign.ordered_quantity || 0;
-                const minimum = campaign.min_quantity || 0;
-                const maximum = campaign.max_quantity || 0;
-
-                const progress = maximum > 0
-                  ? Math.min((quantity / maximum) * 100, 100)
-                  : 0;
-
-                return (
-                  <div
-                    key={campaign.id}
-                    className="overflow-hidden rounded-2xl border border-line bg-white shadow-sm"
-                  >
-                    {campaign.product?.image_url ? (
-                      <img
-                        src={campaign.product.image_url}
-                        alt={campaign.product.name}
-                        className="h-36 w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-36 items-center justify-center bg-grey-soft text-sm text-muted">
-                        No product image
-                      </div>
-                    )}
-
-                    <div className="p-5">
-                      <h3 className="font-bold text-ink">
-                        {campaign.title}
-                      </h3>
-
-                      <p className="mt-1 text-sm text-muted">
-                        {campaign.product?.name}
-                      </p>
-
-                      <p className="mt-4 text-xs font-semibold text-muted">
-                        CAMPAIGN PROGRESS
-                      </p>
-
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-grey-soft">
-                        <div
-                          className="h-full rounded-full bg-lime-500"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-
-                      <div className="mt-3 flex items-center justify-between text-sm">
-                        <span className="font-bold text-ink">
-                          {quantity} / {maximum} units
-                        </span>
-
-                        <span className={`font-semibold ${
-                          quantity >= minimum
-                            ? "text-green-700"
-                            : "text-orange-600"
-                        }`}>
-                          {quantity >= minimum
-                            ? "Minimum reached"
-                            : `${minimum - quantity} to minimum`}
-                        </span>
-                      </div>
-
-                      <p className="mt-3 text-xs text-muted">
-                        Deadline: {campaign.deadline
-                          ? new Date(campaign.deadline).toLocaleDateString(
-                              "en-KE",
-                              {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              }
-                            )
-                          : "Not specified"}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+              {live.map((campaign) => (
+                <CampaignCard key={campaign.id} campaign={campaign} />
+              ))}
             </div>
           )}
         </section>
 
-        {/* Recent activity */}
-        <section>
-          <div className="mb-4">
-            <h2 className="text-xl font-bold text-ink">
-              Recent activity
+        <div className="flex min-w-0 flex-col gap-6">
+          {/* Needs your action */}
+          <section>
+            <h2 className="mb-3 flex items-center gap-2 text-xl font-bold tracking-tight">
+              Needs your action
+              {actionCount > 0 && (
+                <span className="rounded-full bg-orange px-2 text-xs font-extrabold text-ink">
+                  {actionCount}
+                </span>
+              )}
             </h2>
-          </div>
 
-          <div className="rounded-2xl border border-line bg-white p-6 shadow-sm">
-            <div className="flex items-start gap-3">
-              <span className="mt-1 h-3 w-3 rounded-full bg-lime" />
-
-              <div>
-                <p className="text-sm font-semibold text-ink">
-                  Dashboard connected
+            <div className="rounded-[18px] bg-white p-2">
+              {actionCount === 0 ? (
+                <p className="px-3 py-6 text-center text-sm text-muted">
+                  You're all caught up.
                 </p>
-                <p className="mt-1 text-xs text-muted">
-                  Your product and campaign information is loading from your account.
-                </p>
-              </div>
-            </div>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {awaitingStock.map((c) => (
+                    <li key={`stock-${c.id}`}>
+                      <Link
+                        to="/seller/campaigns"
+                        className="flex items-center gap-3 rounded-xl p-3 text-ink no-underline hover:bg-canvas"
+                      >
+                        <img
+                          src={productImage(c.product)}
+                          alt=""
+                          className="size-11 shrink-0 rounded-lg bg-canvas object-contain p-1"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold">
+                            Confirm stock: {c.title}
+                          </span>
+                          <span className="block text-xs text-muted">
+                            {c.ordered_quantity} units ordered
+                          </span>
+                        </span>
+                        <ChevronRight
+                          size={16}
+                          className="shrink-0 text-muted"
+                          aria-hidden="true"
+                        />
+                      </Link>
+                    </li>
+                  ))}
 
-            <div className="mt-5 border-t border-line pt-4">
-              <p className="text-sm text-muted">
-                Activity notifications will appear here when the notifications API is connected.
-              </p>
+                  {rejectedProducts.map((p) => (
+                    <li key={`product-${p.id}`}>
+                      <Link
+                        to="/seller/products"
+                        className="flex items-center gap-3 rounded-xl p-3 text-ink no-underline hover:bg-canvas"
+                      >
+                        <img
+                          src={productImage(p)}
+                          alt=""
+                          className="size-11 shrink-0 rounded-lg bg-canvas object-contain p-1"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold">
+                            Fix and resubmit: {p.name}
+                          </span>
+                          <span className="block truncate text-xs text-bad">
+                            {p.rejection_reason}
+                          </span>
+                        </span>
+                        <ChevronRight
+                          size={16}
+                          className="shrink-0 text-muted"
+                          aria-hidden="true"
+                        />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
+          </section>
 
-            <button
-              onClick={() => navigate("/seller/campaigns")}
-              className="mt-5 text-sm font-bold text-forest hover:underline"
-            >
-              View campaign orders →
-            </button>
-          </div>
-        </section>
+          {/* Supplying now */}
+          {supplying.length > 0 && (
+            <section>
+              <h2 className="mb-3 text-xl font-bold tracking-tight">
+                Supplying now
+              </h2>
+              <ul className="divide-y divide-line rounded-[18px] bg-white p-2">
+                {supplying.map((c) => (
+                  <li key={c.id} className="flex items-center gap-3 p-3">
+                    <img
+                      src={productImage(c.product)}
+                      alt=""
+                      className="size-11 shrink-0 rounded-lg bg-canvas object-contain p-1"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">
+                        {c.title}
+                      </span>
+                      <span className="block text-xs text-muted">
+                        {c.ordered_quantity} units to supply
+                      </span>
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        c.stock_confirmed_at
+                          ? "bg-lime-soft text-forest"
+                          : "bg-orange-soft text-orange-text"
+                      }`}
+                    >
+                      {c.stock_confirmed_at
+                        ? "Stock confirmed"
+                        : "Not confirmed"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

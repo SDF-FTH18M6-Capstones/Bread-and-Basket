@@ -1,6 +1,5 @@
-
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ApiError } from '../../api/client'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ApiError } from "../../api/client";
 import {
   cancelOrder,
   canCancelNow,
@@ -8,12 +7,8 @@ import {
   confirmReceipt,
   fetchMyOrders,
   toSummary,
-} from '../../api/orders'
-import {
-  formatDateTime,
-  formatMoney,
-  statusOf,
-} from './ordersUtils'
+} from "../../api/orders";
+import { formatDateTime, formatMoney, statusOf } from "./ordersUtils";
 import {
   DriveProgress,
   EmptyState,
@@ -27,101 +22,88 @@ import {
   btnDanger,
   btnPrimary,
   btnSuccess,
-} from './ordersParts'
+} from "./ordersParts";
 
 /* My orders page — uses the backend Orders API. */
 
 const FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'active', label: 'In progress' },
-  { id: 'completed', label: 'Completed' },
-  { id: 'closed', label: 'Cancelled' },
-]
-
-/**
- * Props (all optional):
- *  - loginUrl, browseUrl        links for the signed-out and empty states
- *  - orderUrl: (order) => url   link to the tracking page (default /orders/{id})
- */
+  { id: "all", label: "All" },
+  { id: "active", label: "In progress" },
+  { id: "completed", label: "Completed" },
+  { id: "closed", label: "Cancelled" },
+];
 
 export default function OrdersPage({
-  loginUrl = '/login',
-  browseUrl = '/',
+  loginUrl = "/login",
+  browseUrl = "/",
   orderUrl = (order) => `/orders/${order.id}`,
 }) {
-  const [orders, setOrders] = useState(null)
-  const [error, setError] = useState(null)
-  const [filter, setFilter] = useState('all')
-  const [now, setNow] = useState(() => new Date())
-  const [busy, setBusy] = useState(null)
-  const [actionError, setActionError] = useState(null)
+  const [orders, setOrders] = useState(null);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState("all");
+  const [now, setNow] = useState(() => new Date());
+  const [busy, setBusy] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
   const load = useCallback(async ({ signal } = {}) => {
-    setOrders(null)
-    setError(null)
+    setOrders(null);
+    setError(null);
 
     try {
-      const data = await fetchMyOrders({ signal })
-      setOrders(data)
-      setNow(new Date())
+      const data = await fetchMyOrders({ signal });
+      setOrders(data);
+      setNow(new Date());
     } catch (err) {
-      if (err.name === 'AbortError') return
+      if (err.name === "AbortError") return;
 
-      setError(
-        err instanceof ApiError
-          ? err
-          : new ApiError(err.message),
-      )
+      setError(err instanceof ApiError ? err : new ApiError(err.message));
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    const ctrl = new AbortController()
+    const ctrl = new AbortController();
 
-    load({ signal: ctrl.signal })
+    load({ signal: ctrl.signal });
 
-    return () => ctrl.abort()
-  }, [load])
+    return () => ctrl.abort();
+  }, [load]);
 
   async function runAction(order, action) {
     if (
-      action === 'cancel' &&
+      action === "cancel" &&
       !window.confirm(
         `Cancel order ${order.order_no}? You'll get a full refund of ${formatMoney(order.total_amount)}.`,
       )
     ) {
-      return
+      return;
     }
 
-    setBusy({ id: order.id, action })
-    setActionError(null)
+    setBusy({ id: order.id, action });
+    setActionError(null);
 
     try {
       const updated =
-        action === 'cancel'
+        action === "cancel"
           ? await cancelOrder(order.id)
-          : await confirmReceipt(order.id)
+          : await confirmReceipt(order.id);
 
       setOrders((list) =>
-        list.map((o) =>
-          o.id === order.id ? toSummary(updated) : o,
-        ),
-      )
+        list.map((o) => (o.id === order.id ? toSummary(updated) : o)),
+      );
 
-      setNow(new Date())
+      setNow(new Date());
     } catch (err) {
       if (err.status === 401) {
-        setError(err)
-        return
+        setError(err);
+        return;
       }
 
       setActionError({
         id: order.id,
-        message:
-          err.message || 'Something went wrong. Please try again.',
-      })
+        message: err.message || "Something went wrong. Please try again.",
+      });
     } finally {
-      setBusy(null)
+      setBusy(null);
     }
   }
 
@@ -131,28 +113,24 @@ export default function OrdersPage({
       active: 0,
       completed: 0,
       closed: 0,
-    }
+    };
 
     for (const o of orders || []) {
-      c.all += 1
-      c[statusOf(o.status).group] += 1
+      c.all += 1;
+      c[statusOf(o.status).group] += 1;
     }
 
-    return c
-  }, [orders])
+    return c;
+  }, [orders]);
 
   const shown = (orders || []).filter(
-    (o) =>
-      filter === 'all' ||
-      statusOf(o.status).group === filter,
-  )
+    (o) => filter === "all" || statusOf(o.status).group === filter,
+  );
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
       <main className="mx-auto max-w-3xl px-5 pt-8 pb-16">
-        <h1 className="font-serif text-3xl font-semibold">
-          My orders
-        </h1>
+        <h1 className="font-serif text-3xl font-semibold">My orders</h1>
 
         {orders && <Summary orders={orders} />}
 
@@ -175,11 +153,7 @@ export default function OrdersPage({
           </EmptyState>
         ) : (
           <>
-            <FilterTabs
-              value={filter}
-              counts={counts}
-              onChange={setFilter}
-            />
+            <FilterTabs value={filter} counts={counts} onChange={setFilter} />
 
             {shown.length === 0 ? (
               <EmptyState
@@ -198,11 +172,7 @@ export default function OrdersPage({
                     order={o}
                     now={now}
                     href={orderUrl ? orderUrl(o) : null}
-                    busy={
-                      busy && busy.id === o.id
-                        ? busy.action
-                        : null
-                    }
+                    busy={busy && busy.id === o.id ? busy.action : null}
                     actionError={
                       actionError && actionError.id === o.id
                         ? actionError.message
@@ -217,76 +187,65 @@ export default function OrdersPage({
         )}
       </main>
     </div>
-  )
+  );
 }
 
 function Summary({ orders }) {
-  const live = orders.filter(
-    (o) => statusOf(o.status).group !== 'closed',
-  )
+  const live = orders.filter((o) => statusOf(o.status).group !== "closed");
 
   const active = live.filter(
-    (o) => statusOf(o.status).group === 'active',
-  ).length
+    (o) => statusOf(o.status).group === "active",
+  ).length;
 
   const saved = live.reduce(
     (sum, o) =>
       sum +
       Math.max(
         0,
-        o.quantity *
-          ((o.campaign && o.campaign.savings_per_unit) || 0),
+        o.quantity * ((o.campaign && o.campaign.savings_per_unit) || 0),
       ),
     0,
-  )
+  );
 
-  if (!active && !saved) return null
+  if (!active && !saved) return null;
 
   return (
     <p className="mt-1.5 text-stone-500">
-      {active > 0 &&
-        `${active} order${active === 1 ? '' : 's'} in progress`}
+      {active > 0 && `${active} order${active === 1 ? "" : "s"} in progress`}
 
-      {active > 0 && saved > 0 && ' · '}
+      {active > 0 && saved > 0 && " · "}
 
       {saved > 0 && (
         <>
-          {active > 0 ? 'you' : 'You'}’ve saved{' '}
+          {active > 0 ? "you" : "You"}’ve saved{" "}
           <strong className="font-semibold text-emerald-700">
             {formatMoney(saved)}
-          </strong>{' '}
+          </strong>{" "}
           by buying together
         </>
       )}
     </p>
-  )
+  );
 }
 
 function FilterTabs({ value, counts, onChange }) {
   function onKeyDown(e) {
-    if (
-      e.key !== 'ArrowRight' &&
-      e.key !== 'ArrowLeft'
-    ) {
-      return
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") {
+      return;
     }
 
-    const i = FILTERS.findIndex((f) => f.id === value)
+    const i = FILTERS.findIndex((f) => f.id === value);
 
     const next =
       FILTERS[
-        (i +
-          (e.key === 'ArrowRight'
-            ? 1
-            : FILTERS.length - 1)) %
-          FILTERS.length
-      ].id
+        (i + (e.key === "ArrowRight" ? 1 : FILTERS.length - 1)) % FILTERS.length
+      ].id;
 
-    onChange(next)
+    onChange(next);
 
-    const el = document.getElementById(`tab-${next}`)
+    const el = document.getElementById(`tab-${next}`);
 
-    if (el) el.focus()
+    if (el) el.focus();
   }
 
   return (
@@ -297,7 +256,7 @@ function FilterTabs({ value, counts, onChange }) {
       className="my-5 flex gap-1.5 overflow-x-auto"
     >
       {FILTERS.map((f) => {
-        const selected = value === f.id
+        const selected = value === f.id;
 
         return (
           <button
@@ -310,51 +269,42 @@ function FilterTabs({ value, counts, onChange }) {
             onClick={() => onChange(f.id)}
             className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-700 ${
               selected
-                ? 'border-stone-900 bg-stone-900 text-white'
-                : 'border-stone-200 bg-white text-stone-900 hover:border-stone-400'
+                ? "border-stone-900 bg-stone-900 text-white"
+                : "border-stone-200 bg-white text-stone-900 hover:border-stone-400"
             }`}
           >
             {f.label}
 
             <span
               className={`ml-1 tabular-nums ${
-                selected
-                  ? 'text-stone-300'
-                  : 'text-stone-500'
+                selected ? "text-stone-300" : "text-stone-500"
               }`}
             >
               {counts[f.id]}
             </span>
           </button>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
-function OrderCard({
-  order: o,
-  now,
-  href,
-  busy,
-  actionError,
-  onAction,
-}) {
-  const c = o.campaign
-  const p = c.product
-  const st = statusOf(o.status)
+function OrderCard({ order: o, now, href, busy, actionError, onAction }) {
+  const c = o.campaign;
+  const p = c.product;
+  const st = statusOf(o.status);
 
-  const closed = st.group === 'closed'
-  const saved = o.quantity * c.savings_per_unit
+  const closed = st.group === "closed";
+  const saved = o.quantity * c.savings_per_unit;
 
-  const cancellable = canCancelNow(o, now)
-  const receivable = canConfirmReceipt(o)
+  const cancellable = canCancelNow(o, now);
+  const receivable = canConfirmReceipt(o);
 
   return (
     <li
       aria-label={`Order ${o.order_no}`}
       className={`overflow-hidden rounded-2xl border border-stone-200 ${
-        closed ? 'bg-stone-50' : 'bg-white'
+        closed ? "bg-stone-50" : "bg-white"
       }`}
     >
       {/* Header */}
@@ -372,11 +322,8 @@ function OrderCard({
               </a>
             ) : (
               p.name
-            )}{' '}
-
-            <span className="font-normal text-stone-500">
-              · {p.unit}
-            </span>
+            )}{" "}
+            <span className="font-normal text-stone-500">· {p.unit}</span>
           </p>
 
           <p className="text-sm">{c.title}</p>
@@ -396,14 +343,12 @@ function OrderCard({
       <div className="flex flex-wrap items-baseline justify-between gap-4 border-t border-stone-200 px-4 py-3 sm:px-5">
         <div className="text-sm">
           {o.quantity} × {formatMoney(c.campaign_price)}
-
           {p.retail_price > c.campaign_price && (
             <s className="ml-1 text-stone-400">
               <span className="sr-only">shop price </span>
               {formatMoney(p.retail_price)}
             </s>
           )}
-
           {!closed && saved > 0 && (
             <span className="block text-[13px] font-semibold text-emerald-700">
               You save {formatMoney(saved)}
@@ -414,52 +359,44 @@ function OrderCard({
         <div className="text-right">
           <b
             className={`text-lg tabular-nums ${
-              closed ? 'text-stone-400 line-through' : ''
+              closed ? "text-stone-400 line-through" : ""
             }`}
           >
             {formatMoney(o.total_amount)}
           </b>
 
           <small className="block text-xs text-stone-500">
-            {o.fulfilment === 'delivery'
-              ? 'incl. platform fee & delivery'
-              : 'incl. platform fee'}
+            {o.fulfilment === "delivery"
+              ? "incl. platform fee & delivery"
+              : "incl. platform fee"}
           </small>
         </div>
       </div>
 
       {/* Body */}
       <div className="grid gap-3.5 px-4 pt-1 pb-4 sm:px-5">
-        {closed ? (
-          <RefundNote order={o} />
-        ) : (
-          <ProgressSteps order={o} />
-        )}
+        {closed ? <RefundNote order={o} /> : <ProgressSteps order={o} />}
 
-        {st.group === 'active' && (
-          <DriveProgress campaign={c} now={now} />
-        )}
+        {st.group === "active" && <DriveProgress campaign={c} now={now} />}
 
         {!closed && <Fulfilment order={o} />}
 
         {receivable && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 px-3.5 py-3 text-sm">
             <span>
-              {o.fulfilment === 'delivery'
-                ? 'Got your delivery?'
-                : 'Picked it up?'}{' '}
+              {o.fulfilment === "delivery"
+                ? "Got your delivery?"
+                : "Picked it up?"}{" "}
               Let us know so we can close the order.
             </span>
 
             <button
               type="button"
               disabled={Boolean(busy)}
-              onClick={() => onAction(o, 'confirm')}
+              onClick={() => onAction(o, "confirm")}
               className={btnSuccess}
             >
-              {busy === 'confirm'
-                ? 'Saving…'
-                : 'I’ve received it'}
+              {busy === "confirm" ? "Saving…" : "I’ve received it"}
             </button>
           </div>
         )}
@@ -467,19 +404,16 @@ function OrderCard({
         {cancellable && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-stone-200 pt-3 text-[13px] text-stone-500">
             <span>
-              Free cancellation until{' '}
-              {formatDateTime(o.cancellation_cutoff)}
+              Free cancellation until {formatDateTime(o.cancellation_cutoff)}
             </span>
 
             <button
               type="button"
               disabled={Boolean(busy)}
-              onClick={() => onAction(o, 'cancel')}
+              onClick={() => onAction(o, "cancel")}
               className={btnDanger}
             >
-              {busy === 'cancel'
-                ? 'Cancelling…'
-                : 'Cancel order'}
+              {busy === "cancel" ? "Cancelling…" : "Cancel order"}
             </button>
           </div>
         )}
@@ -495,10 +429,10 @@ function OrderCard({
             href={href}
             className="justify-self-start text-sm font-semibold text-orange-700 hover:underline"
           >
-            {closed ? 'View order' : 'Track order'}
+            {closed ? "View order" : "Track order"}
           </a>
         )}
       </div>
     </li>
-  )
+  );
 }
