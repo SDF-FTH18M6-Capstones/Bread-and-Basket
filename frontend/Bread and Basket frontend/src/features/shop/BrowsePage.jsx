@@ -69,6 +69,19 @@ export default function BrowsePage() {
   const loading = status === "loading";
   const firstLoad = loading && campaigns.length === 0;
 
+  function handleCategoryChange(value) {
+    setCategory(value);
+
+    // Keep the URL in step, so refresh/back and links like /browse?category=fruits work
+    setSearchParams(
+      (params) => {
+        if (value) params.set("category", value);
+        else params.delete("category");
+        return params;
+      },
+      { replace: true },
+    );
+  }
   return (
     <main className="mx-auto max-w-[1240px] px-4 pb-12 pt-5">
       <section>
@@ -79,7 +92,7 @@ export default function BrowsePage() {
 
       {/* Category chips */}
       <section className="mt-5">
-        <CategoryChips />
+        <CategoryChips value={category} onChange={handleCategoryChange} />
       </section>
 
       {/* Campaign filters */}

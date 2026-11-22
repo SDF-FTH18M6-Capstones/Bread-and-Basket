@@ -87,18 +87,32 @@ const ShopPage = () => {
     .filter((order) => IN_PROGRESS.includes(order.status))
     .slice(0, 2);
 
-  const closest = [...data.almostUnlocked].sort(
-    (a, b) =>
-      a.min_quantity -
-      a.ordered_quantity -
-      (b.min_quantity - b.ordered_quantity),
-  )[0];
+  // Never offer a campaign whose deadline has passed
+  const isOpen = (campaign) =>
+    new Date(campaign.deadline).getTime() > Date.now();
+  const all = data.all.filter(isOpen);
+  const endingSoon = data.endingSoon.filter(isOpen);
+  const almostUnlocked = data.almostUnlocked.filter(isOpen);
 
-  const shown = new Set(
-    [...data.endingSoon, ...data.almostUnlocked].map((c) => c.id),
+  // Campaigns this shopper already joined (live orders only)
+  const joined = new Set(
+    data.orders
+      .filter((order) => !["cancelled", "refunded"].includes(order.status))
+      .map((order) => order.campaign?.id ?? order.campaign_id),
   );
-  const rest = data.all.filter((campaign) => !shown.has(campaign.id));
 
+  // "Help it unlock" only suggests campaigns you haven't joined yet
+  const closest = almostUnlocked
+    .filter((campaign) => !joined.has(campaign.id))
+    .sort(
+      (a, b) =>
+        a.min_quantity -
+        a.ordered_quantity -
+        (b.min_quantity - b.ordered_quantity),
+    )[0];
+
+  const shown = new Set([...endingSoon, ...almostUnlocked].map((c) => c.id));
+  const rest = all.filter((campaign) => !shown.has(campaign.id));
   return (
     <main className="mx-auto max-w-[1240px] px-4 pb-12 pt-5">
       {/* Greeting */}
@@ -221,12 +235,12 @@ const ShopPage = () => {
       {/* Rails hide themselves when empty */}
       <CampaignRail
         title="Ending soon"
-        campaigns={data.endingSoon}
+        campaigns={endingSoon}
         seeAllTo="/browse?filter=ending_soon"
       />
       <CampaignRail
         title="Almost unlocked"
-        campaigns={data.almostUnlocked}
+        campaigns={almostUnlocked}
         seeAllTo="/browse?filter=almost_unlocked"
       />
       <CampaignRail
@@ -235,7 +249,7 @@ const ShopPage = () => {
         seeAllTo="/browse"
       />
 
-      {data.all.length === 0 && (
+      {all.length === 0 && (
         <div className="mt-7 rounded-xl bg-white px-4 py-10 text-center">
           <h3 className="font-semibold">No campaigns open right now</h3>
           <p className="mt-1 text-sm text-muted">

@@ -4,6 +4,7 @@ import { useAuth } from "../../hooks/useAuth";
 import {
   getSellerProducts,
   submitSellerProduct,
+  updateSellerProduct,
 } from "../../api/sellerProducts";
 import { assetUrl } from "../../api/client";
 import { productImage } from "../../lib/productImages";
@@ -29,6 +30,24 @@ const EMPTY_FORM = {
   stock_quantity: "",
   image_url: "",
 };
+
+// Turn a product from the API into form values (inputs always hold strings)
+function toForm(product) {
+  if (!product) return EMPTY_FORM;
+  return {
+    name: product.name ?? "",
+    description: product.description ?? "",
+    category: product.category ?? "",
+    unit: product.unit ?? "",
+    wholesale_price: String(product.wholesale_price ?? ""),
+    retail_price: String(product.retail_price ?? ""),
+    stock_quantity: String(product.stock_quantity ?? ""),
+    image_url: product.image_url ?? "",
+  };
+}
+
+// Only approved products are locked; pending and rejected can be edited
+const EDITABLE = ["pending", "rejected"];
 
 function formatKES(amount) {
   return `KES ${Number(amount || 0).toLocaleString("en-KE")}`;
@@ -100,7 +119,9 @@ function ImageLinkPreview({ url }) {
   );
 }
 
-function ProductCard({ product }) {
+function ProductCard({ product, onEdit }) {
+  const editable = EDITABLE.includes(product.approval_status);
+
   return (
     <article className="flex min-w-0 flex-col gap-3 rounded-[18px] border border-line bg-white p-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md">
       <div className="relative">
@@ -141,16 +162,35 @@ function ProductCard({ product }) {
       )}
 
       <div className="mt-auto flex items-center justify-between gap-3 border-t border-line pt-3 text-sm">
-        <span className="text-muted">Stock</span>
+        <span className="text-muted">
+          Stock{" "}
+          <strong className="ml-1 text-ink">
+            {product.stock_quantity ?? 0}
+          </strong>
+        </span>
 
-        <strong className="text-ink">{product.stock_quantity ?? 0}</strong>
+        {editable && (
+          <button
+            type="button"
+            onClick={() => onEdit(product)}
+            className="rounded-full border border-line px-3.5 py-1.5 text-xs font-bold text-forest transition hover:border-forest hover:bg-lime-soft"
+          >
+            {product.approval_status === "rejected"
+              ? "Edit & resubmit"
+              : "Edit"}
+          </button>
+        )}
       </div>
     </article>
   );
 }
 
-function AddProductModal({ onClose, onSubmit, submitting, error }) {
-  const [form, setForm] = useState(EMPTY_FORM);
+// One form for both: `product` empty = add, `product` given = edit
+function ProductFormModal({ product, onClose, onSubmit, submitting, error }) {
+  const isEdit = Boolean(product);
+  const initial = toForm(product);
+
+  const [form, setForm] = useState(initial);
   const [formError, setFormError] = useState("");
 
   function handleChange(event) {
@@ -186,7 +226,7 @@ function AddProductModal({ onClose, onSubmit, submitting, error }) {
       return;
     }
 
-    const product = {
+    const values = {
       name: form.name.trim(),
       description: form.description.trim(),
       category: form.category,
@@ -197,7 +237,29 @@ function AddProductModal({ onClose, onSubmit, submitting, error }) {
       image_url: form.image_url.trim() || null,
     };
 
-    await onSubmit(product);
+    if (!isEdit) {
+      await onSubmit(values);
+      return;
+    }
+
+    // Edit: send only the fields that changed (PATCH = partial update)
+    const before = {
+      ...toForm(product),
+      wholesale_price: Number(product.wholesale_price),
+      retail_price: Number(product.retail_price),
+      stock_quantity: Number(product.stock_quantity),
+      image_url: product.image_url || null,
+    };
+    const changes = Object.fromEntries(
+      Object.entries(values).filter(([key, value]) => value !== before[key]),
+    );
+
+    if (Object.keys(changes).length === 0) {
+      setFormError("Nothing has changed yet.");
+      return;
+    }
+
+    await onSubmit(changes);
   }
 
   const inputClass =
@@ -230,7 +292,7 @@ function AddProductModal({ onClose, onSubmit, submitting, error }) {
             id="add-product-title"
             className="text-[22px] font-bold text-forest"
           >
-            Add product
+            {isEdit ? "Edit product" : "Add product"}
           </h2>
 
           <button
@@ -256,6 +318,20 @@ function AddProductModal({ onClose, onSubmit, submitting, error }) {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-[14px]">
+          {isEdit &&
+            product.approval_status === "rejected" &&
+            product.rejection_reason && (
+              <div className="rounded-xl bg-orange-soft p-3 text-sm leading-snug text-orange-text">
+                <strong>Admin's note:</strong> {product.rejection_reason}
+              </div>
+            )}
+
+          {isEdit && (
+            <p className="text-xs leading-relaxed text-muted">
+              Saving sends the product back to the admin for review.
+            </p>
+          )}
+
           {/* Product image (by link) */}
           <div className="flex items-center gap-3 rounded-2xl border border-line bg-canvas p-3">
             <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-xl border border-line bg-white text-muted">
@@ -289,7 +365,7 @@ function AddProductModal({ onClose, onSubmit, submitting, error }) {
                 <span className="font-normal text-muted">(optional)</span>
               </span>
               <input
-                type="url"
+                type="text"
                 name="image_url"
                 value={form.image_url}
                 onChange={handleChange}
@@ -436,7 +512,11 @@ function AddProductModal({ onClose, onSubmit, submitting, error }) {
             disabled={submitting}
             className="min-h-[54px] self-start rounded-full bg-lime px-[22px] text-[17px] font-bold text-forest transition hover:bg-lime/80 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? "Submitting..." : "Submit for approval"}
+            {submitting
+              ? "Saving..."
+              : isEdit
+                ? "Save and resubmit"
+                : "Submit for approval"}
           </button>
         </form>
       </section>
@@ -520,6 +600,7 @@ export default function SellerHome() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null); // null = adding
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
@@ -557,22 +638,47 @@ export default function SellerHome() {
     }
   }
 
-  async function handleSubmit(product) {
+  function openAdd() {
+    setSubmitError("");
+    setEditingProduct(null);
+    setShowModal(true);
+  }
+
+  function openEdit(product) {
+    setSubmitError("");
+    setEditingProduct(product);
+    setShowModal(true);
+  }
+
+  async function handleSubmit(values) {
     setSubmitting(true);
     setSubmitError("");
     setSubmitSuccess("");
 
     try {
-      await submitSellerProduct(product);
+      if (editingProduct) {
+        await updateSellerProduct(editingProduct.id, values);
+      } else {
+        await submitSellerProduct(values);
+      }
       await loadProducts();
 
       setShowModal(false);
-      setSubmitSuccess("Your product has been submitted for approval.");
+      setSubmitSuccess(
+        editingProduct
+          ? `${editingProduct.name} was updated and sent back for review.`
+          : "Your product has been submitted for approval.",
+      );
+      setEditingProduct(null);
     } catch (error) {
       if (error.code === "SELLER_NOT_APPROVED") {
         setSubmitError("Your wholesaler account is waiting for approval.");
+      } else if (error.code === "PRODUCT_NOT_EDITABLE") {
+        setSubmitError(
+          "This product is already approved, so it can't be edited.",
+        );
       } else {
-        setSubmitError(error.message || "Unable to submit your product.");
+        setSubmitError(error.message || "Unable to save your product.");
       }
     } finally {
       setSubmitting(false);
@@ -635,10 +741,7 @@ export default function SellerHome() {
 
           <button
             type="button"
-            onClick={() => {
-              setSubmitError("");
-              setShowModal(true);
-            }}
+            onClick={openAdd}
             className="inline-flex w-full items-center justify-center rounded-xl bg-lime px-6 py-3.5 text-sm font-bold text-forest transition hover:bg-lime/80 sm:w-auto"
           >
             Add product
@@ -697,10 +800,7 @@ export default function SellerHome() {
 
               <button
                 type="button"
-                onClick={() => {
-                  setSubmitError("");
-                  setShowModal(true);
-                }}
+                onClick={openAdd}
                 className="mt-6 rounded-xl bg-lime px-6 py-3 font-bold text-forest transition hover:bg-lime/80"
               >
                 Add your first product
@@ -709,7 +809,11 @@ export default function SellerHome() {
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-[18px]">
               {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onEdit={openEdit}
+                />
               ))}
             </div>
           )}
@@ -717,8 +821,13 @@ export default function SellerHome() {
       ) : null}
 
       {showModal && (
-        <AddProductModal
-          onClose={() => setShowModal(false)}
+        <ProductFormModal
+          key={editingProduct?.id ?? "new"}
+          product={editingProduct}
+          onClose={() => {
+            setShowModal(false);
+            setEditingProduct(null);
+          }}
           onSubmit={handleSubmit}
           submitting={submitting}
           error={submitError}
