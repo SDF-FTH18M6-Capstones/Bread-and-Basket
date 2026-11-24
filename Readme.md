@@ -404,7 +404,7 @@ The tests cover the business rules: closing a campaign (success vs failure and r
 
 | Name    | Role                                   |
 | ------- | -------------------------------------- |
-| Cleopas | Scrum master · backend lead · frontend |
+| Cleopas | Scrum master · backend lead            |
 | Duncan  | frontend                               |
 | Panther | frontend                               |
 | Jelani  | frontend                               |
