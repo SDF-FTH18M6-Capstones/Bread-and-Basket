@@ -215,7 +215,7 @@ function OrderCard({ order }) {
         <div className="flex justify-between gap-4">
           <span className="text-muted">Reference</span>
           <span className="break-all text-right text-forest">
-            {values.reference}
+            {values.payment.reference}
           </span>
         </div>
 

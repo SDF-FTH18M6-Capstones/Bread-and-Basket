@@ -10,6 +10,7 @@ from .routes.location import blp as location_blp
 from .routes.order import blp as order_blp
 from .routes.admin import blp as admin_blp
 from .routes.seller import blp as seller_blp
+from flask_cors import CORS
 
 from .commands import register_commands
 
@@ -27,7 +28,9 @@ def create_app(config_class=None):
     jwt.init_app(app)
     api.init_app(app)
     bcrypt.init_app(app)
-    cors.init_app(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
+
+    origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+    CORS(app, origins=origins, supports_credentials=True)
 
     register_commands(app)
 
