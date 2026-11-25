@@ -8,9 +8,9 @@ import { validateLogin } from "./validation";
 
 // Shown only while the app runs on mock data. Fills the form so you can log in with one more click.
 const DEMO_ACCOUNTS = [
-  { label: "Consumer", email: "consumer@test.com" },
-  { label: "Seller", email: "seller@test.com" },
-  { label: "Admin", email: "admin@test.com" },
+  { label: "Consumer", email: "achieng@test.com" },
+  { label: "Seller", email: "jelani@test.com" },
+  { label: "Admin", email: "cleopas@test.com" },
 ];
 
 export default function LoginForm() {
@@ -29,7 +29,7 @@ export default function LoginForm() {
   }
 
   function fillDemo(email) {
-    setValues({ email, password: "password123" });
+    setValues({ email, password: "test12345" });
     setErrors({});
     setFormError("");
   }
