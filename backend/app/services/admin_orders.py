@@ -5,6 +5,7 @@ from ..extensions import db
 from ..models.campaigns import Campaign
 from ..models.orders import Order
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 
 class FulfilmentService:
@@ -34,9 +35,11 @@ class FulfilmentService:
             campaign.status = CampaignStatus.FULFILLING
 
     def list_campaign_orders(self, campaign_id):
+
         return db.session.scalars(
             select(Order)
             .where(Order.campaign_id == campaign_id)
+            .options(selectinload(Order.payment), selectinload(Order.refund))
             .order_by(Order.created_at.asc())
         ).all()
 

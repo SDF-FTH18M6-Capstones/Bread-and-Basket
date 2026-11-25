@@ -1,7 +1,14 @@
 from marshmallow import Schema, fields, validate
-from ..models.enums import OrderStatus, FulfilmentType, CampaignStatus
+from ..models.enums import (
+    OrderStatus,
+    FulfilmentType,
+    CampaignStatus,
+    RefundReason,
+    PaymentStatus,
+)
 from .location import LocationSchema
 from .auth import UserSchema
+from datetime import timezone
 
 
 class StatusUpdateSchema(Schema):
@@ -23,6 +30,24 @@ class StatusUpdateSchema(Schema):
     )
 
 
+class AdminPaymentSchema(Schema):
+    reference = fields.Str()
+    amount = fields.Int()
+    status = fields.Enum(PaymentStatus, by_value=True)
+    paid_at = fields.AwareDateTime(default_timezone=timezone.utc, allow_none=True)
+
+
+class AdminRefundSchema(Schema):
+    amount = fields.Int()
+    reason = fields.Enum(RefundReason, by_value=True)
+    processed_at = fields.AwareDateTime(default_timezone=timezone.utc)
+    # True when the system refunded it (failed campaign); False when a person did
+    automatic = fields.Method("get_automatic")
+
+    def get_automatic(self, refund):
+        return refund.processed_by is None
+
+
 class AdminOrderSchema(Schema):
     id = fields.Int(dump_only=True)
     order_no = fields.Str(dump_only=True)
@@ -40,6 +65,8 @@ class AdminOrderSchema(Schema):
             by_value=True,
         )
     )
+    payment = fields.Nested(AdminPaymentSchema, allow_none=True)
+    refund = fields.Nested(AdminRefundSchema, allow_none=True)
 
 
 class BatchStatusResultSchema(Schema):
